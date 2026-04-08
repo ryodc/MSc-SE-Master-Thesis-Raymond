@@ -6,19 +6,19 @@
 % This is different from Related Work (\cref{ch:related}), where you show the relation of literature to your contributions (to ground, compare, or inform).
 % A good rule of thumb is that your thesis should still make sense if the background chapter is removed.
 
-\subsection{Cybersecurity Decision-Making Context}
+\section{Cybersecurity Decision-Making Context}
 
 Modern organizations rely heavily on cybersecurity tools such as vulnerability scanners, intrusion detection systems, and Security Operations Center (SOC) platforms to monitor and protect their infrastructure. These systems generate large volumes of technical data, including alerts, logs, and vulnerability reports. While these outputs are essential for security analysts, they are often difficult to interpret for non-technical stakeholders such as consultants, managers, and decision-makers.
 
 In practice, cybersecurity decision-making extends beyond purely technical analysis. Stakeholders must prioritize risks, allocate resources, and communicate security posture to clients or higher management. However, existing tools are primarily designed for expert users and provide limited support for translating technical findings into actionable insights. As a result, there is a gap between the generation of cybersecurity data and its effective use in decision-making processes.
 
-\subsection{Software Architecture and Abstraction}
+\section{Software Architecture and Abstraction}
 
 Software architecture plays a central role in managing system complexity by defining high-level structures, components, and interactions. According to \cite{bass2012software}, architectural design enables abstraction, allowing complex systems to be understood and communicated at different levels of detail. This is particularly relevant in domains such as cybersecurity, where raw system outputs can be highly technical and difficult to interpret.
 
 Abstraction mechanisms, such as layered architectures and separation of concerns, can be used to transform low-level technical data into higher-level representations. These representations can support different types of users, ranging from technical experts to non-technical stakeholders. In this context, software architecture is not only a technical design activity but also a means of facilitating communication and understanding across stakeholder groups.
 
-\subsection{Explainable AI and Interpretability}
+\section{Explainable AI and Interpretability}
 
 Explainable Artificial Intelligence (XAI) aims to make complex computational outputs more understandable to humans. Techniques such as LIME \cite{ribeiro2016should}, SHAP \cite{lundberg2017unified}, and counterfactual explanations \cite{wachter2017counterfactual} provide mechanisms to explain model behavior and predictions.
 
@@ -26,13 +26,13 @@ While XAI has primarily been applied in machine learning contexts, its underlyin
 
 In this research, explainability is not treated as a purely algorithmic feature, but as a design principle that can be embedded within software architectures to support understanding for non-technical users.
 
-\subsection{Human Factors and Usable Security}
+\section{Human Factors and Usable Security}
 
 Human factors play a critical role in cybersecurity. Research has shown that users often struggle to understand security risks, leading to misinterpretation or ineffective decision-making. Cranor \cite{cranor2008framework} emphasizes the importance of considering the human in the loop when designing security systems.
 
 Usable security research highlights that security mechanisms must be designed with user comprehension in mind. This includes reducing cognitive load, presenting information clearly, and aligning system outputs with user mental models. In the context of cybersecurity tools, this means that dashboards, reports, and alerts should support interpretation and decision-making rather than simply presenting raw technical data.
 
-\subsection{Design Science Research}
+\section{Design Science Research}
 
 This research follows a Design Science Research (DSR) approach, which focuses on the creation and evaluation of artifacts to solve identified problems. Hevner et al. \cite{hevner2004design} define DSR as a paradigm in which knowledge is generated through the design and evaluation of innovative artifacts.
 
