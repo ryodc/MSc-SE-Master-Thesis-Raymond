@@ -1,0 +1,33 @@
+\chapter{Introduction}\label{ch:introduction}
+Cybersecurity systems such as vulnerability scanners, incident response platforms, and Security Operations Center (SOC) tools generate large amounts of technical data. While these systems are essential for identifying risks, their outputs are often difficult to interpret for non-technical stakeholders such as consultants, managers, and decision-makers. As a result, there is a disconnect between what the systems produce and what stakeholders actually need to make decisions.
+
+In practice, organizations rely on reports, dashboards, or expert interpretation to bridge this gap. However, these solutions are often inconsistent and depend heavily on the individual preparing them. This makes it difficult for non-technical stakeholders to understand the severity of risks, the reasoning behind recommendations, or the broader impact on the organization. Consequently, decision-making can become slower and less reliable.
+
+Explainable Artificial Intelligence (XAI) introduces techniques such as SHAP, LIME, and counterfactual explanations to make complex models more interpretable. However, these techniques are typically designed for technical users and are rarely integrated into software systems in a way that supports communication with non-technical stakeholders. From a software engineering perspective, there is still limited guidance on how to embed explainability into system architectures.
+
+This thesis explores how software architectures can be designed to better communicate cybersecurity information to non-technical stakeholders. The focus is on designing abstractions and architectural components that translate technical outputs into more understandable representations, rather than improving the underlying detection models.
+
+The main research question is:
+
+\textit{How can software architectures be designed to effectively communicate cybersecurity information to non-technical stakeholders using explainable abstractions?}
+
+To answer this question, the following sub-questions are defined:
+
+\begin{itemize}
+    \item What challenges do non-technical stakeholders face when interpreting cybersecurity information?
+    \item Which explainability techniques are suitable for integration into cybersecurity workflows?
+    \item How can software architecture support the translation of technical outputs into understandable abstractions?
+    \item To what extent does the proposed approach improve understanding and decision-making?
+\end{itemize}
+
+This research follows a Design Science Research (DSR) approach, in which an artifact is designed and evaluated. The artifact consists of a conceptual architecture and a prototype that integrates explainability into a cybersecurity workflow.
+
+The contributions of this thesis are:
+
+\begin{itemize}
+    \item A software architecture for explainable cybersecurity reporting
+    \item A prototype demonstrating the integration of explainability into a cybersecurity workflow
+    \item An evaluation of the approach with respect to understandability, usefulness, and transparency
+\end{itemize}
+
+The remainder of this thesis is structured as follows. Chapter 2 provides background on cybersecurity workflows, explainable AI, and software architecture concepts. Chapter 3 discusses related work. Chapter 4 describes the research methodology. Chapter 5 presents the design and implementation. Chapter 6 evaluates the approach. Chapter 7 concludes the thesis.

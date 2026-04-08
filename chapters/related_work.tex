@@ -1,0 +1,61 @@
+\chapter{Related Work}\label{ch:related}
+
+% In this chapter, you describe how other people have dealt with similar problems that you are dealing with.
+% What were their techniques?
+% What were their results?
+% What observations did they make that you have used?
+% In what way is your work different?
+
+% The role of the related work is threefold:
+% \begin{enumerate}
+% \item Your work is grounded in earlier work done by other researchers.
+% That means you use techniques and methods, ways of measuring and evaluating, datasets and terminology used by others working on the same or a related problem before you.
+% \item You want to compare your results with those of others.
+% This is especially true for key papers with respect to your research, \ie{}~\ac{SOTA}.
+% Those papers need to be referred to in this chapter.
+% This could also lead to a hypothesis, which is the answer that you expect based on previous literature.
+% \item The previous two points mentioned cover the main function of this chapter.
+% In addition with related work, you inform the reader on the \ac{SOTA}, the state of the problem, and the
+% existing solutions.
+% You also show that you know what you are talking about, that you know what is ``for sale'', and that you use the best there is.
+% \end{enumerate}
+
+% Depending on your story, you may want to put this chapter at the end of your thesis (before the Conclusions chapter) or at the beginning of your thesis (after the Introduction chapter).
+% Typically, when your work is a direct extension or modification of existing work, you want to put this at the beginning to compare and contrast your research.
+% This helps in showing the reader the context and demonstrating the novelty of your approach.
+
+% When your research is in a very new area where you explore a novel concept, you may want to put the Related Work at the end.
+% It is beneficial to first get the reader comfortable with your research before showing how it fits within the wider research area.
+% Showing the related work first may distract the reader and make them lose interest in the rest of the thesis.
+
+% In the end, think about the story you want to tell and discuss this with your academic supervisor.
+
+\subsection{Cybersecurity Tools and Reporting}
+
+Cybersecurity tools such as intrusion detection systems and vulnerability scanners are essential for identifying and managing security risks. Frameworks such as those described by \cite{scarfone2007guide} provide structured approaches for detecting and responding to threats. However, these systems are primarily designed for technical users and often produce outputs that are difficult to interpret for non-technical stakeholders.
+
+Existing dashboards and reporting tools focus on aggregating and visualizing data, but they frequently lack mechanisms for abstraction and explanation. As a result, users without deep technical expertise may struggle to understand the implications of security findings or to translate them into actionable decisions.
+
+\subsection{Explainable AI in Security Contexts}
+
+Explainable AI has gained significant attention as a means of improving transparency in complex systems. Techniques such as LIME \cite{ribeiro2016should}, SHAP \cite{lundberg2017unified}, and counterfactual explanations \cite{wachter2017counterfactual} have been widely studied and applied in domains such as finance, healthcare, and cybersecurity.
+
+While these approaches provide valuable insights into model behavior, they are often applied at the level of individual predictions rather than at the system level. Furthermore, their integration into operational tools remains limited. Existing work largely focuses on improving model interpretability, rather than embedding explainability into the overall architecture of decision-support systems.
+
+\subsection{Software Architecture for Complex Systems}
+
+Software architecture research emphasizes the importance of structuring systems to manage complexity and support maintainability. Bass et al. \cite{bass2012software} highlight that architectural decisions influence not only system performance but also usability and communication.
+
+However, relatively little work has explored how architectural principles can be used to support explainability and user understanding in cybersecurity systems. While abstraction and layering are well-established concepts, their application to bridging the gap between technical outputs and non-technical users remains underexplored.
+
+\subsection{Human-Centered Security and Decision Support}
+
+Research in usable security and human-centered design has demonstrated that users often misinterpret security information, leading to poor decision-making. Cranor \cite{cranor2008framework} argues that security systems must account for human limitations and provide interfaces that support comprehension.
+
+Decision support systems (DSS) literature further emphasizes the need to present information in a way that aligns with user needs and decision contexts. However, existing DSS approaches are not specifically tailored to cybersecurity environments, where data is highly technical and rapidly evolving.
+
+\subsection{Research Gap}
+
+Although prior work has addressed explainability, cybersecurity tooling, and software architecture individually, there is limited research that integrates these perspectives into a unified solution. In particular, there is a lack of software architectures that explicitly incorporate explainability as a core design principle to support non-technical stakeholders in cybersecurity decision-making.
+
+This thesis addresses this gap by designing and evaluating an explainable software architecture that transforms technical cybersecurity outputs into understandable and actionable insights for non-technical users.
