@@ -79,3 +79,31 @@ XAI research provides methods for explaining model outputs, but most of it remai
 As a result, existing work does not sufficiently address the following combined problem: how to design a software architecture that transforms technical vulnerability findings into stakeholder-oriented explanations that are understandable, actionable, and traceable to the underlying evidence.
 
 That is the gap this thesis addresses. Rather than proposing yet another standalone explanation method, the thesis contributes a Software Engineering approach that treats explanation as an architectural responsibility. The focus is on designing abstractions, components, and flows that support stakeholder-oriented cybersecurity reporting in a vulnerability management workflow. In this way, the thesis connects areas that are currently treated separately in the literature and provides a more integrated design-oriented response to the problem.
+
+% New added 
+\section{Design Principles Derived from the Literature}
+\label{sec:design-principles}
+
+The four literature strands reviewed in this chapter do not converge on a single solution, but they do jointly suggest a set of design principles that can guide the architectural decisions in this thesis. These principles are extracted from recurring arguments and recommendations in the literature and are stated in terms relevant to the artifact being designed. They will inform the architectural choices described in Chapter~\ref{ch:designandprototype}.
+
+\begin{description}
+
+  \item[DP1 — Audience-relative explanation.] Explanations cannot be designed independently of their intended user and decision context \cite{doshivelez2017rigorous, lipton2018mythos}. The architecture must explicitly represent different stakeholder roles and produce distinct explanation outputs suited to each role's goals, vocabulary, and decision needs.
+
+  \item[DP2 — Selective and contrastive content.] Effective human explanations are selective rather than exhaustive \cite{miller2019explanation}. The system should not expose all available scanner fields but instead select the most relevant factors for the specific decision question, and, where appropriate, frame them contrastively to explain prioritisation choices.
+
+  \item[DP3 — Evidence traceability.] Explanation outputs must remain traceable to the underlying technical evidence from which they were derived. This supports auditability, consistency, and the ability of stakeholders to verify claims \cite{bass2012software, wachter2017counterfactual}. Traceability must be a first-class architectural concern, not an afterthought.
+
+  \item[DP4 — Separation of explanation concerns.] Explanation generation, abstraction, and presentation should be modelled as distinct architectural responsibilities \cite{parnas1972modules, bass2012software}. Combining these concerns in a single component (such as a manually written report or dashboard) makes the system fragile, inconsistent, and expensive to evolve.
+
+  \item[DP5 — Stakeholder-oriented abstraction layers.] The architecture should organise data transformation into explicit abstraction layers that progressively convert low-level technical fields into higher-level, stakeholder-interpretable concepts \cite{kruchten1995viewmodel, barredo2020xai}. Each layer should hide the implementation details of the layer below it.
+
+  \item[DP6 — Translation as a design problem.] Explanation should be approached as a structured transformation process: content selection, aggregation, and linguistic realisation \cite{reiter2000nlg, gatt2018survey}. This treats the conversion of technical findings into stakeholder-oriented narratives as an engineering responsibility rather than as informal expert judgement.
+
+  \item[DP7 — Modifiability for evolving toolchains.] Cybersecurity tooling and reporting requirements change over time. The architecture must support modifiability by isolating tool-specific parsing from explanation logic, so that changes to the ingestion source do not cascade through the system \cite{bass2012software, parnas1972modules}.
+
+  \item[DP8 — Human interpretation over algorithmic completeness.] The goal of the explanation is to support correct human understanding and action, not to expose the full computational process \cite{cranor2008framework, werlinger2008ids, miller2019explanation}. Explanations that are technically complete but cognitively overwhelming fail the stakeholder even if they are accurate.
+
+\end{description}
+
+These eight principles are not independent; several overlap and reinforce one another. DP1, DP2, and DP8 together establish that stakeholder needs govern explanation design. DP3, DP4, and DP7 together establish that traceability and maintainability must be structural properties of the architecture. DP5 and DP6 together describe the transformation mechanism. The mapping of these principles to specific architectural layers is detailed in \cref{ch:designandprototype} and is also summarised in \cref{tab:dp-mapping} in the appendix.

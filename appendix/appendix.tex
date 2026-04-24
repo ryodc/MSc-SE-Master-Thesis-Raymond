@@ -1,6 +1,106 @@
 \chapter{Appendix}%
 \label{ch:appendix}
 
-In the appendix you can provide non-crucial information.
-Often you put here tables or figures that are too big and do not contribute to the results or evaluation chapter.
-Same with longer code examples, or design files.
+% Appendix 1
+\section{Literature Search and Screening Log}
+\label{sec:screening-log}
+
+This appendix documents the structured literature search conducted during Phase~2 of the project. The search was performed across four databases: Google Scholar, ACM Digital Library, IEEE Xplore, and SpringerLink. Search strings were formed by combining topic keywords across the four literature strands of this thesis.
+
+\subsection*{Search Strings}
+
+The following query combinations were used:
+
+\begin{itemize}
+  \item \texttt{"explainable AI" AND "decision support"}
+  \item \texttt{"explainable AI" AND "interpretability evaluation"}
+  \item \texttt{"usable security" AND "security reporting"}
+  \item \texttt{"usable security" AND "security dashboards"}
+  \item \texttt{"software architecture" AND "abstractions" AND "stakeholders"}
+  \item \texttt{"data-to-text" AND "explanation generation"}
+  \item \texttt{"data-to-text" AND "technical communication"}
+  \item \texttt{"vulnerability management" AND "explainability"}
+  \item \texttt{"cybersecurity" AND "non-technical stakeholders" AND "explanation"}
+\end{itemize}
+
+\subsection*{Inclusion and Exclusion Criteria}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lp{0.75\textwidth}@{}}
+\toprule
+\textbf{Criterion} & \textbf{Description} \\
+\midrule
+\textbf{Include} & Peer-reviewed articles, conference papers, or books \\
+                 & Directly addresses one of the four literature strands \\
+                 & Published in English \\
+                 & Relevant to stakeholder-oriented explanation, XAI methods, SE architecture, usable security, or data-to-text \\
+\midrule
+\textbf{Exclude} & Grey literature (blog posts, vendor white papers) unless no academic equivalent exists \\
+                 & Purely algorithmic ML papers with no discussion of human interpretation \\
+                 & Papers focused on detection performance only, without explanation component \\
+                 & Duplicate or highly similar coverage already provided by a survey paper \\
+\bottomrule
+\end{tabular}
+\caption{Inclusion and exclusion criteria for literature screening.}
+\label{tab:screening-criteria}
+\end{table}
+
+\subsection*{Screening Results by Strand}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lp{0.45\textwidth}rr@{}}
+\toprule
+\textbf{Strand} & \textbf{Key Sources} & \textbf{Screened} & \textbf{Retained} \\
+\midrule
+XAI and Human-Centred Explanation
+  & Barredo Arrieta et al.~\cite{barredo2020xai}; Guidotti et al.~\cite{guidotti2018survey}; Miller~\cite{miller2019explanation}; Doshi-Velez \& Kim~\cite{doshivelez2017rigorous}; Lipton~\cite{lipton2018mythos}; Ribeiro et al.~\cite{ribeiro2016should}; Lundberg \& Lee~\cite{lundberg2017unified}; Wachter et al.~\cite{wachter2017counterfactual}
+  & 42 & 8 \\
+\midrule
+Software Architecture and Abstraction
+  & Bass et al.~\cite{bass2012software}; Parnas~\cite{parnas1972modules}; Kruchten~\cite{kruchten1995viewmodel}
+  & 28 & 3 \\
+\midrule
+Usable Security and Security Communication
+  & Cranor~\cite{cranor2008framework}; Werlinger et al.~\cite{werlinger2008ids}
+  & 31 & 2 \\
+\midrule
+Data-to-Text and NLG
+  & Reiter \& Dale~\cite{reiter2000nlg}; Gatt \& Krahmer~\cite{gatt2018survey}
+  & 19 & 2 \\
+\midrule
+\textbf{Total} & & \textbf{120} & \textbf{15} \\
+\bottomrule
+\end{tabular}
+\caption{Summary of literature screening results by strand.}
+\label{tab:screening-results}
+\end{table}
+
+Selection proceeded in three steps: (1)~title and abstract screening against the inclusion criteria; (2)~full-text screening for relevance to stakeholder-oriented explanation or software integration; and (3)~backward and forward snowballing from highly relevant survey papers. Priority was given to survey papers and seminal works to establish broad coverage without bias toward any single technique.
+
+% Appendix 2
+\section{Design Principles to Architecture Layer Mapping}
+\label{sec:dp-mapping}
+
+\Cref{tab:dp-mapping} summarises how each design principle derived from the literature maps to a layer in the four-layer architecture proposed in this thesis.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llp{0.45\textwidth}@{}}
+\toprule
+\textbf{Principle} & \textbf{Architecture Layer} & \textbf{Architectural Implication} \\
+\midrule
+DP1 — Audience-relative explanation   & Stakeholder View    & Separate renderers for technical and non-technical roles; role is an explicit input parameter \\
+DP2 — Selective and contrastive content & Explanation         & Ranking logic selects top contributing factors; contrastive note generated when multiple vulnerabilities are compared \\
+DP3 — Evidence traceability           & Explanation + Ingestion & Each explanation object carries pointers back to the source scanner fields that drove it \\
+DP4 — Separation of explanation concerns & All layers         & Parsing, abstraction, explanation logic, and view rendering are implemented as independent components with defined interfaces \\
+DP5 — Stakeholder-oriented abstraction layers & Abstraction    & Raw scanner fields are mapped to abstract concepts (e.g.\ exploit likelihood, business impact) before explanation generation \\
+DP6 — Translation as a design problem & Explanation         & Explanation objects are produced through content selection, factor aggregation, and template-based realisation \\
+DP7 — Modifiability for evolving toolchains & Ingestion       & The parser is isolated behind a normalised internal representation; swapping the data source does not affect downstream layers \\
+DP8 — Human interpretation over completeness & Stakeholder View & Non-technical views suppress raw scores in favour of plain-language risk summaries; uncertainty is surfaced explicitly \\
+\bottomrule
+\end{tabular}
+\caption{Mapping of design principles to architecture layers.}
+\label{tab:dp-mapping}
+\end{table}
