@@ -9,3 +9,63 @@
 % On the other hand, when you develop a new framework, you want to describe in detail the requirements and the design, and the motivation behind them (\ie{} the decision you made and why).
 % Make sure to discuss all ethical aspects of your research.
 % This is more important when dealing with (datasets of) people or (trained) AI models.
+This chapter describes how the research was conducted. It explains the choice of methodology, the procedures used in each phase, and how each phase connects to the research questions. Limitations and ethical considerations are addressed where relevant.
+
+\section{Research Approach: Design Science Research}
+
+This thesis follows a Design Science Research (DSR) methodology. DSR is appropriate when the primary contribution is a designed artifact, a model, architecture, or prototype. It is intended to solve a relevant problem \cite{hevner2004dsr}. The artifact in this thesis is a software architecture and prototype that transforms vulnerability scanner outputs into stakeholder-oriented explanations. The goal is not to prove a universal theory but to design and evaluate a concrete solution in context.
+
+Hevner et al.\ propose seven guidelines for rigorous DSR \cite{hevner2004dsr}. The most relevant here are that the artifact must address an important and unsolved problem, must be rigorously evaluated, and must make a novel contribution relative to prior work. These guidelines shape the structure of this thesis. The problem is established in Chapter~\ref{ch:introduction} and grounded in the literature in Chapters~\ref{ch:background} and~\ref{ch:related}. The artifact is designed in response to elicited requirements and derived design principles. The evaluation assesses whether it improves stakeholder understanding in a concrete vulnerability management scenario.
+
+DSR is characterised by three interacting cycles \cite{hevner2004dsr}. The \textit{Relevance Cycle} grounds the design in real-world needs, addressed here through stakeholder interviews. The \textit{Rigor Cycle} connects the design to the existing knowledge base, addressed through the literature survey and design principle extraction. The \textit{Design Cycle} iterates between building and evaluating the artifact. The five research phases described below map onto these cycles. They are not strictly sequential: the literature survey ran in parallel with requirements elicitation, and the design draws on both.
+
+\section{Phase 1: Requirements Elicitation}
+\label{sec:methods-phase1}
+
+The first phase addresses \textbf{RQ1}: which requirements and quality attributes are needed for effective stakeholder-oriented explanations of vulnerability management outputs?
+
+Interpretability and usefulness cannot be defined independently of the user and their decision context \cite{doshivelez2017rigorous}. Liao et al.\ show that users of AI-assisted systems have task-specific explanation needs that must be elicited rather than assumed \cite{liao2020questioning}. This makes an explicit requirements elicitation step necessary before any architectural decisions are made.
+
+Semi-structured interviews are conducted with two groups of participants. The first group consists of security engineers or analysts who work directly with vulnerability scanner outputs. The second consists of non-technical stakeholders, consultants, delivery managers, or client-facing roles, who need understandable explanations for planning and communication. Semi-structured interviews are chosen because they allow consistent coverage of key topics while leaving room for participants to raise concerns that were not anticipated in the interview guide. Each interview covers four areas: what decisions the participant makes using vulnerability information; which parts of scanner output are unclear or unusable in their role; what a useful explanation should contain; and what evidence is needed to trust an explanation. Interviews are recorded where consent is given; otherwise detailed notes are taken.
+
+Notes are coded using a lightweight thematic analysis approach. The goal is requirement extraction and prioritization, not sociological theory-building. The outcome is a structured requirements specification consisting of user stories with acceptance criteria and quality attribute scenarios \cite{bass2012software}, which are used to justify architectural decisions in Phase~3.
+
+The sample is kept small by design. The stopping criterion is thematic saturation, the point at which new interviews no longer produce new requirement categories, rather than a fixed participant count. This is consistent with DSR, where field engagement is intended to ground the design rather than to produce generalisable findings \cite{hevner2004dsr}. A practical limitation is that participants are drawn from a single organizational context, which means the elicited requirements reflect one consulting environment and may not transfer to others.
+
+Participation is voluntary. Participants are free to withdraw at any time and are informed that the study is academic and that no responses will be attributed to them individually. Because participants are colleagues within the same organization, care is taken to ensure participation is not linked to any performance or project evaluation. Interview notes are anonymized before analysis. No customer data or proprietary findings are collected at any point, and all data handling follows the confidentiality constraints agreed with Accenture.
+
+\section{Phase 2: Literature Survey and Design Principle Extraction}
+\label{sec:methods-phase2}
+
+The second phase supports both RQ1 and \textbf{RQ2} by grounding the architectural design in existing research, in line with the Rigor Cycle of DSR \cite{hevner2004dsr}.
+
+A structured literature survey was conducted across four databases: Google Scholar, ACM Digital Library, IEEE Xplore, and SpringerLink. Search strings combined keywords across the four relevant strands: XAI and interpretability, software architecture and abstraction, usable security and security communication, and data-to-text generation. Selection proceeded in three steps: title and abstract screening, full-text screening for relevance to stakeholder-oriented explanation or software integration, and snowballing from highly cited survey papers. The full search procedure, inclusion and exclusion criteria, and screening results are documented in \cref{sec:screening-log}.
+
+The survey produces two outputs. The first is a synthesis of the relevant literature by strand, presented in Chapter~\ref{ch:related}. The second is a set of eight design principles (DP1--DP8) extracted from recurring arguments across the four strands, stated in Section~\ref{sec:design-principles} and mapped to architectural layers in \cref{sec:dp-mapping}. Each architectural decision in Phase~3 is traceable to at least one of these principles and, through it, to the underlying literature.
+
+\section{Phase 3: Artifact Design}
+\label{sec:methods-phase3}
+
+The third phase addresses \textbf{RQ2}: how can an architectural design and abstraction model be constructed to transform Qualys-style vulnerability findings into explainable stakeholder-specific representations?
+
+The artifact is a conceptual software architecture organised into four layers. The \textit{Ingestion layer} parses Qualys-style exports into a normalised internal representation, isolating tool-specific formats from downstream logic. The \textit{Abstraction layer} maps raw technical fields to higher-level concepts such as exploitation likelihood and business impact. The \textit{Explanation layer} produces explanation objects containing a risk summary, a ranked list of contributing factors, an action recommendation, and traceability pointers to the source scanner fields. The \textit{Stakeholder View layer} renders these objects into role-specific outputs: a technical view for security analysts and a plain-language view for non-technical stakeholders.
+
+The layered decomposition follows Parnas' principle of information hiding \cite{parnas1972modules}: each layer hides one design decision from the layer above it, so that changes in one part of the system do not cascade through the rest. The multi-view output reflects Kruchten's argument that different stakeholders require different representations of the same underlying information \cite{kruchten1995viewmodel}. Each design decision is traced to at least one requirement from Phase~1 or one design principle from Phase~2. The architecture is documented in Chapter~\ref{ch:designandprototype} with component responsibilities, interfaces, and data flows.
+
+\section{Phase 4: Prototype Implementation}
+\label{sec:methods-phase4}
+
+The fourth phase implements a working prototype to demonstrate feasibility and to support concrete evaluation.
+
+In DSR, a working instantiation of the artifact provides stronger evidence of feasibility than a conceptual model alone, because it forces design decisions to be resolved and makes the artifact testable \cite{hevner2004dsr}. The prototype takes a synthetic Qualys-style vulnerability record as input and produces two outputs: a technical explanation view and a non-technical plain-language view. Rule-based and template-driven mechanisms are used deliberately rather than machine learning approaches. This keeps the explanation logic transparent and controllable, which allows the evaluation to focus on stakeholder comprehension rather than predictive performance \cite{doshivelez2017rigorous}. No real customer data is used at any point.
+
+\section{Phase 5: Evaluation}
+\label{sec:methods-phase5}
+
+The fifth phase addresses \textbf{RQ3}: to what extent does the proposed design improve perceived understandability and usefulness compared to baseline vulnerability reporting, and what trade-offs emerge?
+
+Interpretability and usefulness are human-centred qualities that require stakeholder evaluation rather than computational metrics \cite{doshivelez2017rigorous, miller2019explanation}. The evaluation uses scenario-based walkthroughs with participants from the same two stakeholder groups as Phase~1. Each participant first reviews a baseline vulnerability report and then the corresponding explanation output for the same finding. Presenting the baseline first avoids a familiarity effect that could otherwise favour the explanation output.
+
+Participants answer structured questions covering three dimensions: whether they can correctly interpret the risk and the reasoning behind it; whether the explanation supports the decision they would need to make in their role; and whether they can connect it back to the original scanner evidence. Data is collected through short questionnaires and open-ended prompts. Responses are analysed descriptively; qualitative prompts are coded thematically to surface recurring patterns.
+
+The evaluation does not aim for statistical significance. The sample is small and drawn from a single organisational context, which limits generalisability. The aim is to surface design-relevant insights and trade-offs, such as cases where richer content reduces clarity, or where simplified outputs lose necessary evidence, that inform the assessment of the artifact and point toward future work. These limitations are discussed further in Chapter~\ref{ch:conclusion}.
