@@ -10,3 +10,292 @@
 % Be sure to provide a detailed description of the environment, tools, and procedures used in your experiments.
 % This is crucial for reproducibility.
 % % follow some of the repro standards? 
+This chapter presents the design of the artifact and describes its prototype implementation. The artifact is a software system that transforms vulnerability scanner outputs into stakeholder-oriented explanations by passing findings through a sequence of four architectural layers. The design is grounded in the eight design principles derived from the literature in Chapter~\ref{ch:related} and in the requirements elicited from stakeholders in Phase~1. Each architectural decision is traced to at least one of these sources, so that the rationale behind every design choice is explicit and verifiable.
+
+Section~\ref{sec:architecture-overview} introduces the overall architecture and describes how the layers interact. Sections~\ref{sec:ingestion} through~\ref{sec:stakeholder-view} describe each layer in turn, including its responsibilities, its design decisions, and the principles that motivated them. Section~\ref{sec:prototype} describes the prototype implementation, including the technology stack, the input data, and example outputs.
+
+% ─────────────────────────────────────────────
+\section{Architecture Overview}
+\label{sec:architecture-overview}
+% ─────────────────────────────────────────────
+
+The architecture is organised into four sequential layers: Ingestion, Abstraction, Explanation, and Stakeholder View. Each layer receives a well-defined input from the layer below it, performs a single category of transformation, and passes its output upward. This decomposition is motivated by Parnas' principle of information hiding~\cite{parnas1972modules}: each layer conceals one set of design decisions from the layers above it, so that a change to one layer does not require changes elsewhere. The result is a system in which the data source can be swapped, the abstraction rules can be updated, and new stakeholder views can be added, each without affecting the remaining components. This property directly implements DP4 and DP7. The overall structure is illustrated in Figure~\ref{fig:architecture-overview}.
+
+\begin{figure}[h]
+\centering
+\missingfigure{Left-to-right flow diagram with five labelled boxes connected by arrows. Box 1: Scanner Input. Box 2: Ingestion Layer (``Normalise raw fields''). Box 3: Abstraction Layer (``Map fields to concepts''). Box 4: Explanation Layer (``Produce explanation object''). Box 5: Stakeholder View Layer, from which two arrows point to two output boxes: Technical View and Non-Technical View. Boxes 2 through 5 should be visually distinct from the input and output boxes.}
+\caption{Overview of the four-layer explanation architecture.}
+\label{fig:architecture-overview}
+\end{figure}
+
+The architectural approach is also motivated by the quality attributes identified in the requirements phase. Bass et al.\ argue that architectural decisions should be driven by quality attributes rather than by functional requirements alone~\cite{bass2012software}. For this system, four quality attributes are particularly relevant. \textit{Traceability} requires that every claim in an explanation can be connected back to the underlying scanner evidence; this shapes the design of the Explanation layer and the structure of the explanation object. \textit{Modifiability} requires that the system can accommodate changes to the data source and the rule logic without cascading consequences; this motivates the strict separation between the Ingestion and Abstraction layers. \textit{Usability} requires that the outputs are understandable and actionable for their intended audience; this drives the design of the Stakeholder View layer. \textit{Maintainability} requires that the explanation logic is transparent and consistent, not embedded in ad hoc report templates; this rules out a design in which explanation generation and presentation are combined in a single component.
+
+The central data structure that connects the upper three layers is the \textit{explanation object}. It is produced by the Explanation layer and consumed by the Stakeholder View layer. It contains the abstracted values, the contributing factors, the evidence pointers, and all fields needed to render either stakeholder view. Its schema is defined in Section~\ref{sec:explanation-layer}. The explanation object is the architectural expression of the principle that the same underlying technical finding should be representable in multiple ways for different audiences, without duplicating any of the transformation logic~\cite{kruchten1995viewmodel}.
+
+The system deliberately does not use machine learning or large language models. Every transformation is implemented through rule tables and string templates, which means the system is deterministic: the same input always produces the same output. This choice is motivated by two considerations. First, it keeps the explanation logic fully inspectable: an analyst or auditor can read the rule tables and understand exactly how a rating was derived, without needing to understand an opaque model. Second, it avoids the objectivity problems that arise when a system produces different explanations for the same input under different conditions. Doshi-Velez and Kim argue that evaluation of interpretable systems must be grounded in the user task and decision context rather than in model performance metrics~\cite{doshivelez2017rigorous}; a deterministic rule-based system makes this kind of evaluation straightforward.
+
+% ─────────────────────────────────────────────
+\section{Ingestion Layer}
+\label{sec:ingestion}
+% ─────────────────────────────────────────────
+
+The Ingestion layer is responsible for parsing a vulnerability scanner export and producing a normalised internal representation of its fields. All knowledge about the format, structure, and field naming conventions of the input source is contained within this layer. The layers above it operate exclusively on the normalised representation and have no direct dependency on the original input. This design implements DP7 and follows Parnas' information hiding principle~\cite{parnas1972modules}: swapping the data source from Qualys to another scanner, such as Tenable or Rapid7, requires writing a new parser but leaves the Abstraction, Explanation, and Stakeholder View layers entirely unchanged.
+
+The parser is structured as an Adapter, in the sense described by Bass et al.\ when discussing connector design in layered architectures~\cite{bass2012software}. The input side of the adapter is specific to the source format; the output side is a fixed Python dictionary conforming to the normalised schema. This interface acts as a contract between the Ingestion layer and the Abstraction layer. The prototype implements a parser for Qualys-style JSON exports, modelled on the publicly available Qualys training data and on the field structure observed in the host organisation's vulnerability management workflow.
+
+The normalised schema is defined in Table~\ref{tab:field-mapping}. It includes eighteen fields covering the vulnerability metadata, the asset context, and temporal indicators. Fields that are absent in a given input record are explicitly set to \texttt{None}. The Abstraction layer handles \texttt{None} values through dedicated conditional branches in each rule table, rather than defaulting to a low or safe value, and records the absence in the \texttt{certainty\_level} and \texttt{limitations} fields of the explanation object. This ensures that missing information is surfaced to the stakeholder rather than silently absorbed into the rating.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lllp{0.30\textwidth}@{}}
+\toprule
+\textbf{Internal Field} & \textbf{Type} & \textbf{Qualys Source Field} & \textbf{Description} \\
+\midrule
+\texttt{vulnerability\_id}       & string & \texttt{CVE\_ID}                    & CVE identifier \\
+\texttt{title}                   & string & \texttt{TITLE}                      & Short vulnerability title \\
+\texttt{severity}                & int    & \texttt{SEVERITY}                   & Severity level (1--5) \\
+\texttt{cvss\_score}             & float  & \texttt{CVSS\_BASE}                 & CVSS base score (0.0--10.0) \\
+\texttt{exploit\_available}      & bool   & \texttt{CORRELATION/EXPLOIT}        & Public exploit exists \\
+\texttt{known\_exploited}        & bool   & \texttt{CORRELATION/MALWARE}        & Actively exploited in the wild \\
+\texttt{attack\_vector}          & string & \texttt{CVSS\_ACCESS\_VECTOR}       & Network / Adjacent / Local \\
+\texttt{patch\_available}        & bool   & \texttt{SOLUTION} (presence)        & Vendor patch exists \\
+\texttt{patch\_age\_days}        & int    & Derived from scan and patch dates   & Days since patch was released \\
+\texttt{days\_open}              & int    & Derived from \texttt{FIRST\_FOUND}  & Days since first detection \\
+\texttt{asset\_id}               & string & \texttt{IP}                         & Asset identifier or IP address \\
+\texttt{hostname}                & string & \texttt{DNS}                        & Asset hostname \\
+\texttt{operating\_system}       & string & \texttt{OS}                         & Operating system \\
+\texttt{asset\_environment}      & string & \texttt{ASSET\_ENVIRONMENT}         & Production / Staging / Development \\
+\texttt{asset\_criticality}      & string & \texttt{ASSET\_RISK\_SCORE} (mapped) & High / Medium / Low \\
+\texttt{asset\_internet\_facing} & bool   & \texttt{NETWORK\_EXPOSURE}          & Asset reachable from the internet \\
+\texttt{status}                  & string & \texttt{VULN\_STATUS}               & Current finding status \\
+\texttt{last\_scan\_date}        & string & \texttt{LAST\_SCAN\_DATETIME}       & ISO 8601 date of last scan \\
+\bottomrule
+\end{tabular}
+\caption{Normalised internal field schema and its mapping from Qualys source fields.}
+\label{tab:field-mapping}
+\end{table}
+
+Two fields require derivation rather than direct mapping. The \texttt{patch\_age\_days} field is computed from the difference between the patch release date and the current scan date. The \texttt{asset\_criticality} field is derived from a numeric asset risk score by applying fixed categorical thresholds: scores of 7.0 or above are mapped to High, scores between 4.0 and 6.9 are mapped to Medium, and scores below 4.0 are mapped to Low. These thresholds are aligned with the severity band conventions used by the National Vulnerability Database for \ac{CVSS} scores and are documented here to support reproducibility. Both derivations are performed within the parser, keeping all input-specific logic contained within the Ingestion layer.
+
+The normalised schema is intentionally minimal. It includes only the fields that are consumed by the Abstraction layer and excludes raw metadata that has no bearing on the explanation, such as internal identifiers, vendor-specific tags, and scan infrastructure data. A narrow interface between layers reduces the risk of unintended coupling and makes it easier to reason about what information flows between components~\cite{bass2012software}.
+
+% ─────────────────────────────────────────────
+\section{Abstraction Layer}
+\label{sec:abstraction-layer}
+% ─────────────────────────────────────────────
+
+The Abstraction layer maps the normalised technical fields produced by the Ingestion layer to three higher-level concepts that are meaningful for both stakeholder groups: exploitation likelihood, business impact, and urgency. These concepts do not appear in raw scanner output. They are produced by applying deterministic rule tables to combinations of input fields. The use of explicit rule tables is the central architectural expression of DP5: raw scanner data is progressively converted into stakeholder-interpretable abstractions before any explanation is generated. It also directly addresses the objectivity concern raised during the design review. The system does not claim that its ratings are neutral, but it does claim that they are transparent: every rule is visible, every input combination is documented, and every output can be verified by reading the table.
+
+Each rule table is implemented as an explicit conditional function in the prototype. The conditions are evaluated in priority order, from highest risk to lowest. When a required input field is \texttt{None}, the function returns a designated \texttt{Unknown} value rather than defaulting to a low rating or raising an error. This behaviour implements the knowability framework discussed with the academic supervisor: the system distinguishes between a finding that is rated Low because it is genuinely low risk and a finding that cannot be rated because the required evidence is absent. The three rule tables are described in detail below.
+
+\subsection{Exploitation Likelihood}
+\label{subsec:exploit-likelihood}
+
+Exploitation likelihood represents the probability that an attacker could successfully exploit this vulnerability against this asset given current conditions. It is derived from three fields: \texttt{exploit\_available}, \texttt{known\_exploited}, and \texttt{asset\_internet\_facing}. These three fields are selected because they capture the two most important dimensions of exploitability: whether a working exploit exists and is accessible, and whether the asset is reachable by an external attacker. The full rule table is shown in Table~\ref{tab:exploit-likelihood}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lllc@{}}
+\toprule
+\textbf{Exploit Available} & \textbf{Known Exploited} & \textbf{Internet Facing} & \textbf{Exploitation Likelihood} \\
+\midrule
+True  & True  & True  & High \\
+True  & True  & False & High \\
+True  & False & True  & High \\
+True  & False & False & Medium \\
+False & True  & True  & Medium \\
+False & True  & False & Medium \\
+False & False & True  & Low \\
+False & False & False & Low \\
+None  & --    & --    & Unknown \\
+\bottomrule
+\end{tabular}
+\caption{Rule table for exploitation likelihood.}
+\label{tab:exploit-likelihood}
+\end{table}
+
+The rules reflect a deliberate ordering of risk factors. A publicly available exploit is treated as the dominant signal: any finding with \texttt{exploit\_available = True} is rated at least Medium, regardless of whether the asset is internet-facing. This is because an attacker with internal access or a foothold elsewhere in the network can still use a public exploit against an internal asset. Active exploitation in the wild (\texttt{known\_exploited = True}) combined with a public exploit is treated as the highest-risk combination and always yields High regardless of asset exposure. A finding with no known exploit and no active exploitation is rated Low even if the asset is internet-facing, because the absence of a working exploit substantially reduces the immediate threat level. When \texttt{exploit\_available} is \texttt{None}, the output is \texttt{Unknown} and the finding is flagged in the limitations field of the explanation object.
+
+\subsection{Business Impact}
+\label{subsec:business-impact}
+
+Business impact captures the potential organisational consequence of a successful exploitation of this vulnerability. It is derived from the \ac{CVSS} base score and the asset criticality. The \ac{CVSS} score represents the intrinsic severity of the vulnerability in isolation; the asset criticality adjusts this for the importance of the affected system to the organisation. A vulnerability with a high \ac{CVSS} score on a low-criticality development system carries a lower business impact than the same vulnerability on a high-criticality production system. This distinction is important for non-technical stakeholders, who are primarily concerned with business consequence rather than technical severity scores~\cite{cranor2008framework}. The full rule table is shown in Table~\ref{tab:business-impact}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{CVSS Score} & \textbf{Asset Criticality} & \textbf{Business Impact} \\
+\midrule
+$\geq 9.0$ & High   & Critical \\
+$\geq 9.0$ & Medium & High \\
+$\geq 9.0$ & Low    & High \\
+$7.0$--$8.9$ & High   & High \\
+$7.0$--$8.9$ & Medium & Medium \\
+$7.0$--$8.9$ & Low    & Medium \\
+$4.0$--$6.9$ & High   & Medium \\
+$4.0$--$6.9$ & Medium & Low \\
+$4.0$--$6.9$ & Low    & Low \\
+$< 4.0$      & Any    & Low \\
+None         & --     & Unknown \\
+\bottomrule
+\end{tabular}
+\caption{Rule table for business impact.}
+\label{tab:business-impact}
+\end{table}
+
+The \ac{CVSS} score thresholds used in this table are aligned with the severity band definitions published by the National Vulnerability Database: Critical ($\geq 9.0$), High ($7.0$--$8.9$), Medium ($4.0$--$6.9$), and Low ($< 4.0$). Using established conventions rather than arbitrary thresholds makes the rules more defensible and easier to update if the conventions change. The interaction between the score and the asset criticality means that the highest business impact rating, Critical, is only reachable when both the intrinsic severity is at its maximum and the asset is of high organisational importance.
+
+\subsection{Urgency}
+\label{subsec:urgency}
+
+Urgency captures how quickly remediation should be prioritised relative to other work. It combines exploitation likelihood with patch availability and the number of days the finding has been open. The inclusion of a temporal dimension directly addresses the time element raised during the design review: a finding that has been open for 800 days carries a different operational significance than one detected yesterday, even if the underlying vulnerability is the same. The full rule table is shown in Table~\ref{tab:urgency}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lllc@{}}
+\toprule
+\textbf{Exploitation Likelihood} & \textbf{Patch Available} & \textbf{Days Open} & \textbf{Urgency} \\
+\midrule
+High    & True  & Any     & Immediate \\
+High    & False & Any     & Immediate \\
+Medium  & True  & $> 60$  & Immediate \\
+Medium  & True  & $\leq 60$ & Scheduled \\
+Medium  & False & Any     & Scheduled \\
+Low     & True  & $> 90$  & Scheduled \\
+Low     & True  & $\leq 90$ & Monitor \\
+Low     & False & Any     & Monitor \\
+Unknown & --    & --      & Monitor \\
+\bottomrule
+\end{tabular}
+\caption{Rule table for urgency.}
+\label{tab:urgency}
+\end{table}
+
+The three urgency levels correspond to concrete, role-neutral recommendations. \textit{Immediate} indicates that the finding requires attention within the current working week and should be escalated if remediation cannot begin promptly. \textit{Scheduled} indicates that the finding should be included in the next planned remediation cycle but does not require immediate escalation. \textit{Monitor} indicates that no action is required at present, but the finding should be reviewed at the next scheduled assessment to check whether its status has changed. These labels are chosen to be actionable without requiring security expertise, in line with DP8. A non-technical stakeholder who reads \textit{Immediate} understands the implication without needing to interpret a CVSS score.
+
+The rule for High exploitation likelihood produces Immediate regardless of whether a patch is available and regardless of how long the finding has been open. This reflects the operational reality that an actively exploitable vulnerability on an exposed asset cannot wait for a convenient patch cycle. Conversely, a Low likelihood finding with no patch available is rated Monitor rather than Scheduled, because the absence of a fix means the main available response is awareness and compensating controls, not remediation.
+
+% ─────────────────────────────────────────────
+\section{Explanation Layer}
+\label{sec:explanation-layer}
+% ─────────────────────────────────────────────
+
+The Explanation layer takes the three abstracted values produced by the Abstraction layer and assembles them into a structured explanation object. The explanation object is the central data structure of the system. It carries all information required to render either stakeholder view and preserves a complete record of the evidence that produced each rated value. Its schema is shown in Table~\ref{tab:explanation-object}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lp{0.58\textwidth}@{}}
+\toprule
+\textbf{Field} & \textbf{Description} \\
+\midrule
+\texttt{vulnerability\_id}     & CVE identifier, carried through from the normalised input \\
+\texttt{risk\_summary}         & A single plain-language sentence summarising the finding and its urgency \\
+\texttt{certainty\_level}      & One of: Known / Known uncertainty / Unknown uncertainty / Unknowable \\
+\texttt{top\_factors}          & Ranked list of the two or three factors that most strongly drove the urgency and impact ratings, each with a label and an evidence pointer \\
+\texttt{business\_consequence} & A single sentence expressing the potential business consequence in non-technical language \\
+\texttt{urgency}               & One of: Immediate / Scheduled / Monitor \\
+\texttt{time\_horizon}         & A plain-language statement of when action should be taken \\
+\texttt{action}                & The specific recommended action, stated concisely and without technical jargon \\
+\texttt{mitigation}            & Optional plain-language statement of temporary measures that can be applied if immediate patching is not operationally feasible; populated only when urgency is Immediate and a patch is available \\
+\texttt{evidence\_pointers}    & A dictionary mapping each abstracted value to the normalised input fields that produced it \\
+\texttt{limitations}           & A statement of what the system could not determine, derived from any \texttt{None} fields encountered during abstraction \\
+\bottomrule
+\end{tabular}
+\caption{Schema of the explanation object.}
+\label{tab:explanation-object}
+\end{table}
+
+The Explanation layer performs two operations in sequence: content selection and template filling. These two operations correspond directly to the first two stages of natural language generation described by Reiter and Dale, which are content selection and aggregation~\cite{reiter2000nlg}. In this system they are applied to structured data rather than free text, but the underlying logic is the same: decide what to say, then say it in a consistent form.
+
+\paragraph{Content selection.} Content selection identifies the factors that most strongly contributed to the urgency and impact ratings and places them in the \texttt{top\_factors} field. The selection follows a fixed priority order: exploitation likelihood is listed first because it is the most actionable signal for the stakeholder, business impact is listed second, and patch availability or days open is listed third if it materially affected the urgency rating. At most three factors are included. This implements DP2: rather than exposing all eighteen normalised fields, the system selects the two or three pieces of evidence that actually explain the outcome~\cite{miller2019explanation}. Each factor is recorded with a short human-readable label and an evidence pointer to the specific normalised input field that produced it.
+
+\paragraph{Template filling.} Template filling produces the natural language fields of the explanation object by inserting the abstracted values into predefined sentence templates. Each template has fixed wording with variable slots. An example for \texttt{risk\_summary} is: \textit{``This vulnerability carries [urgency] urgency because [factor\_1] and [factor\_2].''} For a finding with High exploitation likelihood and Critical business impact, this produces: \textit{``This vulnerability carries Immediate urgency because a public exploit is available for an internet-facing production system and the potential business impact is Critical.''} The \texttt{business\_consequence} field uses a separate template set that expresses impact in operational terms rather than technical ones: for example, \textit{``If exploited, this vulnerability could allow an attacker to gain unauthorised access to a production system, potentially disrupting business operations or exposing sensitive data.''}
+
+Template-based generation keeps the output consistent, auditable, and free from the variability that arises when natural language is generated by a language model. It also means that the text of the explanation can be reviewed and revised by a domain expert without requiring code changes, because the templates are stored as separate configuration rather than embedded in the generation logic.
+
+\paragraph{Certainty and limitations.} The \texttt{certainty\_level} field is derived from the set of fields that returned \texttt{None} during abstraction. If all required fields are present and unambiguous, the level is \textit{Known}. If one required field is absent, the level is \textit{Known uncertainty}. If multiple fields are absent or the combination of inputs is contradictory, the level is \textit{Unknown uncertainty}. The level \textit{Unknowable} is reserved for cases where the system cannot determine a value in principle given the available data, such as when no exploit information is published for a very recent vulnerability. The \texttt{limitations} field translates this into a plain-language note that is displayed in the non-technical view, informing the stakeholder of what the system could not assess.
+
+% ─────────────────────────────────────────────
+\section{Stakeholder View Layer}
+\label{sec:stakeholder-view}
+% ─────────────────────────────────────────────
+
+The Stakeholder View layer renders the explanation object into a role-specific output. Two renderers are implemented, each producing a different representation of the same explanation object for a different stakeholder group. Both renderers receive the explanation object and a role parameter as input; no transformation logic is duplicated between them. This design implements DP1 and DP8 and follows Kruchten's argument that the same underlying information should be representable in multiple views depending on the audience~\cite{kruchten1995viewmodel}. The two views are contrasted in Figure~\ref{fig:stakeholder-views}.
+
+\begin{figure}[h]
+\centering
+\missingfigure{Side-by-side panel comparison. Left panel labelled ``Technical View'' shows: CVE ID, CVSS score (numeric), Exploitation Likelihood (High/Medium/Low label), Business Impact label, top factors list with evidence pointers (e.g. exploit\_available: True), Certainty level, Action, Limitations if any. Right panel labelled ``Non-Technical View'' shows: Risk Summary sentence, Business Consequence sentence, Urgency badge (colour-coded: red for Immediate, amber for Scheduled, green for Monitor), Time Horizon sentence, Action sentence in plain language, Limitations note if certainty is not Known. No CVSS scores or CVE IDs visible in the right panel.}
+\caption{The technical view (left) and the non-technical view (right) rendered from the same explanation object.}
+\label{fig:stakeholder-views}
+\end{figure}
+
+The \textbf{technical view} is intended for security analysts and engineers who work directly with vulnerability data. It exposes the full contents of the explanation object, including the \ac{CVE} identifier, the \ac{CVSS} score, the exploitation likelihood and business impact ratings, the top contributing factors with their evidence pointers, the certainty level, and the recommended action. Raw scores are retained in the technical view because analysts need them to verify the system's reasoning, to cross-reference findings against other tooling, and to assess whether the rule tables are producing sensible results for their environment. Werlinger et al.\ note that experienced practitioners rely on a combination of tool outputs and contextual knowledge when making security decisions~\cite{werlinger2008ids}; the technical view is designed to support this process rather than replace it.
+
+The \textbf{non-technical view} is intended for consultants, delivery managers, and other stakeholders who are not expected to interpret raw scanner output. It omits \ac{CVSS} scores, \ac{CVE} identifiers, and technical field names. Instead, it presents the risk summary, business consequence, urgency label, time horizon, and recommended action, all expressed in plain language. The urgency label is displayed as a colour-coded badge to reduce the reading effort required to prioritise findings. The limitations field is shown when the certainty level is anything other than \textit{Known}, so that the stakeholder is aware of what the system could not determine. This implements DP8: the purpose of the view is to support correct understanding and appropriate action, not to maximise the information displayed~\cite{miller2019explanation}.
+
+Liao et al.\ argue that users of explainable systems ask different types of questions depending on their role and decision context~\cite{liao2020questioning}. A technical analyst asks: what is this vulnerability, what is the evidence, and is the rating correct? A non-technical delivery manager asks: what does this mean for the project, what do I need to do, and when? The two views are designed to answer these distinct question types, rather than providing one view that tries to serve both audiences simultaneously.
+
+Adding a third stakeholder view in future requires only a new rendering function. The explanation object schema, the rule tables, and the template logic remain unchanged. This extensibility is a direct consequence of the architectural separation established by DP4.
+
+% ─────────────────────────────────────────────
+\section{Prototype Implementation}
+\label{sec:prototype}
+% ─────────────────────────────────────────────
+
+A working prototype is implemented to demonstrate the feasibility of the four-layer architecture and to provide the artifact used in the evaluation described in Chapter~\ref{ch:analysis}. In \ac{DSR}, a working instantiation of the artifact provides stronger evidence of feasibility than a conceptual model alone, because it forces every design decision to be resolved concretely and makes the system testable with real inputs and real stakeholders~\cite{hevner2004dsr}. The prototype is not intended to be production-ready software. Its purpose is to demonstrate that the architectural design is realisable and that the two stakeholder views it produces differ in the ways the design predicts.
+
+\subsection{Technology Stack and Code Organisation}
+
+The prototype is implemented in Python. The backend is built with Flask, a lightweight web framework that provides request routing and serves the stakeholder views as rendered HTML pages. The frontend uses standard HTML, CSS, and minimal JavaScript without a frontend framework. This choice reflects the goal of the prototype: the contribution is the architecture and the explanation mechanism, not the interface design. A more sophisticated frontend could be added without modifying any of the four architectural layers.
+
+The code is organised with one module per architectural layer, reflecting the separation of concerns that the design prescribes. Table~\ref{tab:code-structure} shows the file structure and the responsibility of each module.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lp{0.60\textwidth}@{}}
+\toprule
+\textbf{File} & \textbf{Responsibility} \\
+\midrule
+\texttt{ingestion.py}        & Parses Qualys-style JSON input and produces the normalised internal dictionary \\
+\texttt{abstraction.py}      & Implements the three rule tables and returns exploitation likelihood, business impact, and urgency \\
+\texttt{explanation.py}      & Performs content selection and template filling to produce the explanation object \\
+\texttt{views.py}            & Renders the explanation object into HTML for the technical or non-technical view \\
+\texttt{app.py}              & Flask application entry point; handles routing and passes the role parameter to the renderer \\
+\texttt{templates/}          & HTML templates for both stakeholder views \\
+\texttt{data/}               & Synthetic input scenarios in JSON format \\
+\bottomrule
+\end{tabular}
+\caption{Code structure of the prototype, organised by architectural layer.}
+\label{tab:code-structure}
+\end{table}
+
+The module boundaries enforce the layering at the code level: \texttt{abstraction.py} imports from \texttt{ingestion.py} but not from \texttt{explanation.py} or \texttt{views.py}, and \texttt{views.py} imports from \texttt{explanation.py} but has no knowledge of how the explanation object was produced. This makes the architectural boundaries visible in the codebase and not only in the design documentation.
+
+\subsection{Input Data and Synthetic Scenarios}
+
+Because confidentiality constraints prevent the use of real client vulnerability data, the prototype uses synthetic input records. These records are designed to reflect the field structure of Qualys exports observed in the host organisation's workflow and to cover the range of decision scenarios that stakeholders are likely to encounter. Three scenarios are constructed for the evaluation.
+
+\textit{Scenario A} represents a clear critical finding: a vulnerability with a \ac{CVSS} score of 9.8, a publicly available exploit, active exploitation in the wild, an internet-facing production server as the affected asset, and a patch available for more than 60 days. This scenario is designed to produce high confidence outputs across all three rule tables and to verify that the system correctly identifies and communicates an unambiguous high-priority finding.
+
+\textit{Scenario B} represents an ambiguous finding: a vulnerability with a \ac{CVSS} score of 8.5, no public exploit available, an internal development server as the affected asset, and a patch available for 15 days. This scenario tests whether the system handles a finding that looks severe on a technical measure but carries lower urgency given the asset context. It is designed to reveal whether the explanation object communicates the reasoning behind a counterintuitive rating clearly enough for a non-technical stakeholder to understand.
+
+\textit{Scenario C} represents a finding that appears alarming in isolation but is contextually low priority: a vulnerability with a \ac{CVSS} score of 9.1, no public exploit, an asset in a fully isolated network segment with no internet exposure, and compensating controls in place. The \texttt{asset\_internet\_facing} field is False and the \texttt{asset\_criticality} is Low. This scenario tests whether the system correctly moderates its rating based on asset context and whether the resulting explanation is trusted by technical stakeholders who know the asset is isolated.
+
+\subsection{Example Output}
+
+Figures~\ref{fig:example-output-tech} and~\ref{fig:example-output-nontech} show the prototype output for Scenario A. The two figures illustrate the core contribution of the Stakeholder View layer: the same underlying finding, structured by the same explanation object, is rendered into two substantially different representations that are each appropriate for their intended audience.
+
+\begin{figure}[h]
+\centering
+\missingfigure{Screenshot of the prototype technical view for Scenario A. Visible fields: CVE-2024-XXXX, CVSS 9.8, Exploitation Likelihood: High (with evidence: exploit\_available = True, known\_exploited = True, asset\_internet\_facing = True), Business Impact: Critical (with evidence: cvss\_score = 9.8, asset\_criticality = High), Urgency: Immediate, Action: Apply vendor patch immediately and isolate the asset pending remediation, Certainty: Known.}
+\caption{Technical view output for Scenario A (clear critical finding).}
+\label{fig:example-output-tech}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\missingfigure{Screenshot of the prototype non-technical view for the same Scenario A finding. Visible fields: Risk Summary sentence (no CVE ID or CVSS score visible), Business Consequence sentence in plain language, Urgency badge coloured red with label ``Immediate'', Time Horizon sentence (e.g. ``This should be addressed within the current working week''), Action sentence in plain language (e.g. ``Apply the available security update and isolate the affected server until the update is applied''). No technical field names visible.}
+\caption{Non-technical view output for the same Scenario A finding.}
+\label{fig:example-output-nontech}
+\end{figure}
