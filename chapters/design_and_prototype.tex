@@ -84,9 +84,35 @@ The normalised schema is intentionally minimal. It includes only the fields that
 \label{sec:abstraction-layer}
 % ─────────────────────────────────────────────
 
-The Abstraction layer maps the normalised technical fields produced by the Ingestion layer to three higher-level concepts that are meaningful for both stakeholder groups: exploitation likelihood, business impact, and urgency. These concepts do not appear in raw scanner output. They are produced by applying deterministic rule tables to combinations of input fields. The use of explicit rule tables is the central architectural expression of DP5: raw scanner data is progressively converted into stakeholder-interpretable abstractions before any explanation is generated. It also directly addresses the objectivity concern raised during the design review. The system does not claim that its ratings are neutral, but it does claim that they are transparent: every rule is visible, every input combination is documented, and every output can be verified by reading the table.
+The Abstraction layer maps the normalised technical fields produced 
+by the Ingestion layer to three higher-level concepts that are 
+meaningful for both stakeholder groups: exploitation likelihood, 
+business impact, and urgency. These concepts do not appear in raw 
+scanner output. They are derived by evaluating input fields against 
+manually-defined decision trees. Unlike machine learning approaches, 
+the branching conditions in each tree are specified explicitly by 
+the designer based on domain knowledge and the requirements elicited 
+in Phase~1, rather than learned from data. This is the central 
+architectural expression of DP5: raw scanner data is progressively 
+converted into stakeholder-interpretable abstractions before any 
+explanation is generated. It also directly addresses the objectivity 
+concern raised during the design review. The system does not claim 
+that its ratings are neutral, but it does claim that they are 
+transparent: the path from root to leaf for any input record 
+constitutes the complete, traceable justification for the resulting 
+rating, and every branching condition is visible and verifiable.
 
-Each rule table is implemented as an explicit conditional function in the prototype. The conditions are evaluated in priority order, from highest risk to lowest. When a required input field is \texttt{None}, the function returns a designated \texttt{Unknown} value rather than defaulting to a low rating or raising an error. This behaviour implements the knowability framework discussed with the academic supervisor: the system distinguishes between a finding that is rated Low because it is genuinely low risk and a finding that cannot be rated because the required evidence is absent. The three rule tables are described in detail below.
+Each decision tree is implemented as an explicit conditional function 
+in the prototype. The conditions are evaluated in priority order, 
+from the highest-risk combination to the lowest. When a required 
+input field is \texttt{None}, the function returns a designated 
+\texttt{Unknown} value rather than defaulting to a low rating or 
+raising an error. This behaviour implements the knowability framework 
+discussed with the academic supervisor: the system distinguishes 
+between a finding that is rated Low because it is genuinely low risk 
+and a finding that cannot be rated because the required evidence is 
+absent. The three decision trees are described in detail below, each 
+accompanied by a diagram illustrating the branching logic.
 
 \subsection{Exploitation Likelihood}
 \label{subsec:exploit-likelihood}
@@ -115,6 +141,21 @@ None  & --    & --    & Unknown \\
 \end{table}
 
 The rules reflect a deliberate ordering of risk factors. A publicly available exploit is treated as the dominant signal: any finding with \texttt{exploit\_available = True} is rated at least Medium, regardless of whether the asset is internet-facing. This is because an attacker with internal access or a foothold elsewhere in the network can still use a public exploit against an internal asset. Active exploitation in the wild (\texttt{known\_exploited = True}) combined with a public exploit is treated as the highest-risk combination and always yields High regardless of asset exposure. A finding with no known exploit and no active exploitation is rated Low even if the asset is internet-facing, because the absence of a working exploit substantially reduces the immediate threat level. When \texttt{exploit\_available} is \texttt{None}, the output is \texttt{Unknown} and the finding is flagged in the limitations field of the explanation object.
+
+Figure~\ref{fig:tree-exploit} illustrates the same logic as a 
+decision tree, showing the path traversed for any input combination.
+
+\begin{figure}[h]
+\centering
+\missingfigure{Decision tree for exploitation likelihood. Root: 
+exploit\_available? None branch: UNKNOWN. True branch: 
+known\_exploited? True: HIGH. False: internet\_facing? 
+True: HIGH. False: MEDIUM. False branch: known\_exploited? 
+True: internet\_facing? True: MEDIUM. False: MEDIUM. 
+False: internet\_facing? True: LOW. False: LOW.}
+\caption{Decision tree for exploitation likelihood.}
+\label{fig:tree-exploit}
+\end{figure}
 
 \subsection{Business Impact}
 \label{subsec:business-impact}
@@ -146,6 +187,19 @@ None         & --     & Unknown \\
 
 The \ac{CVSS} score thresholds used in this table are aligned with the severity band definitions published by the National Vulnerability Database: Critical ($\geq 9.0$), High ($7.0$--$8.9$), Medium ($4.0$--$6.9$), and Low ($< 4.0$). Using established conventions rather than arbitrary thresholds makes the rules more defensible and easier to update if the conventions change. The interaction between the score and the asset criticality means that the highest business impact rating, Critical, is only reachable when both the intrinsic severity is at its maximum and the asset is of high organisational importance.
 
+Figure~\ref{fig:tree-impact} shows the same logic as a decision tree.
+
+\begin{figure}[h]
+\centering
+\missingfigure{Decision tree for business impact. Root: cvss\_score? 
+None: UNKNOWN. Less than 4.0: LOW. 4.0-6.9: asset\_criticality? 
+High: MEDIUM. Medium: LOW. Low: LOW. 7.0-8.9: asset\_criticality? 
+High: HIGH. Medium: MEDIUM. Low: MEDIUM. 9.0 or above: 
+asset\_criticality? High: CRITICAL. Medium: HIGH. Low: HIGH.}
+\caption{Decision tree for business impact.}
+\label{fig:tree-impact}
+\end{figure}
+
 \subsection{Urgency}
 \label{subsec:urgency}
 
@@ -176,6 +230,18 @@ The three urgency levels correspond to concrete, role-neutral recommendations. \
 
 The rule for High exploitation likelihood produces Immediate regardless of whether a patch is available and regardless of how long the finding has been open. This reflects the operational reality that an actively exploitable vulnerability on an exposed asset cannot wait for a convenient patch cycle. Conversely, a Low likelihood finding with no patch available is rated Monitor rather than Scheduled, because the absence of a fix means the main available response is awareness and compensating controls, not remediation.
 
+Figure~\ref{fig:tree-urgency} shows the urgency decision tree.
+
+\begin{figure}[h]
+\centering
+\missingfigure{Decision tree for urgency. Root: exploitation\_likelihood? 
+Unknown: MONITOR. High: IMMEDIATE (regardless of patch or days). 
+Medium: patch\_available? False: SCHEDULED. True: days\_open > 60? 
+Yes: IMMEDIATE. No: SCHEDULED. Low: patch\_available? False: MONITOR. 
+True: days\_open > 90? Yes: SCHEDULED. No: MONITOR.}
+\caption{Decision tree for urgency.}
+\label{fig:tree-urgency}
+\end{figure}
 % ─────────────────────────────────────────────
 \section{Explanation Layer}
 \label{sec:explanation-layer}
@@ -258,7 +324,9 @@ The code is organised with one module per architectural layer, reflecting the se
 \textbf{File} & \textbf{Responsibility} \\
 \midrule
 \texttt{ingestion.py}        & Parses Qualys-style JSON input and produces the normalised internal dictionary \\
-\texttt{abstraction.py}      & Implements the three rule tables and returns exploitation likelihood, business impact, and urgency \\
+\texttt{abstraction.py} & Implements the three manually-defined 
+decision trees and returns exploitation likelihood, business impact, 
+and urgency \\
 \texttt{explanation.py}      & Performs content selection and template filling to produce the explanation object \\
 \texttt{views.py}            & Renders the explanation object into HTML for the technical or non-technical view \\
 \texttt{app.py}              & Flask application entry point; handles routing and passes the role parameter to the renderer \\
@@ -281,6 +349,62 @@ Because confidentiality constraints prevent the use of real client vulnerability
 \textit{Scenario B} represents an ambiguous finding: a vulnerability with a \ac{CVSS} score of 8.5, no public exploit available, an internal development server as the affected asset, and a patch available for 15 days. This scenario tests whether the system handles a finding that looks severe on a technical measure but carries lower urgency given the asset context. It is designed to reveal whether the explanation object communicates the reasoning behind a counterintuitive rating clearly enough for a non-technical stakeholder to understand.
 
 \textit{Scenario C} represents a finding that appears alarming in isolation but is contextually low priority: a vulnerability with a \ac{CVSS} score of 9.1, no public exploit, an asset in a fully isolated network segment with no internet exposure, and compensating controls in place. The \texttt{asset\_internet\_facing} field is False and the \texttt{asset\_criticality} is Low. This scenario tests whether the system correctly moderates its rating based on asset context and whether the resulting explanation is trusted by technical stakeholders who know the asset is isolated.
+
+\subsection{End-to-End Walkthrough}
+\label{subsec:walkthrough}
+
+To illustrate how the pipeline transforms raw scanner data into a 
+stakeholder-oriented explanation, consider the following input record 
+for Scenario~A:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+\texttt{cvss\_score}             & 9.8 \\
+\texttt{exploit\_available}      & True \\
+\texttt{known\_exploited}        & True \\
+\texttt{asset\_internet\_facing} & True \\
+\texttt{asset\_criticality}      & High \\
+\texttt{patch\_available}        & True \\
+\texttt{days\_open}              & 62 \\
+\bottomrule
+\end{tabular}
+\caption{Input record for the Scenario~A end-to-end walkthrough.}
+\label{tab:walkthrough-input}
+\end{table}
+
+\paragraph{Ingestion layer.} The parser maps these fields into the 
+normalised internal dictionary. No interpretation is performed; 
+the values are typed and structured only.
+
+\paragraph{Abstraction layer.} Each decision tree is evaluated in 
+turn. For exploitation likelihood, the tree traverses: 
+\texttt{exploit\_available = True} $\to$ \texttt{known\_exploited 
+= True} $\to$ \textbf{High}. For business impact: 
+\texttt{cvss\_score = 9.8} $\geq 9.0$ $\to$ 
+\texttt{asset\_criticality = High} $\to$ \textbf{Critical}. 
+For urgency: \texttt{exploitation\_likelihood = High} $\to$ 
+\textbf{Immediate}, regardless of patch status or days open.
+
+\paragraph{Explanation layer.} Content selection identifies the top 
+two factors: a public exploit actively used in the wild (driving 
+the High likelihood rating), and a high-criticality internet-facing 
+production asset (driving the Critical impact rating). Template 
+filling produces the risk summary: \textit{``This vulnerability 
+carries Immediate urgency because a public exploit is actively 
+exploited in the wild on an internet-facing production system and 
+the potential business impact is Critical.''} Evidence pointers 
+record the exact input fields that produced each rating.
+
+\paragraph{Stakeholder View layer.} The technical renderer exposes 
+the full explanation object including \ac{CVE} identifier, \ac{CVSS} 
+score, and evidence pointers. The non-technical renderer suppresses 
+all scores and identifiers, presenting only the risk summary, a red 
+\textit{Immediate} urgency badge, the business consequence sentence, 
+and the recommended action.
 
 \subsection{Example Output}
 
