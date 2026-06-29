@@ -148,12 +148,27 @@ decision tree, showing the path traversed for any input combination.
 
 \begin{figure}[h]
 \centering
-\missingfigure{Decision tree for exploitation likelihood. Root: 
-exploit\_available? None branch: UNKNOWN. True branch: 
-known\_exploited? True: HIGH. False: internet\_facing? 
-True: HIGH. False: MEDIUM. False branch: known\_exploited? 
-True: internet\_facing? True: MEDIUM. False: MEDIUM. 
-False: internet\_facing? True: LOW. False: LOW.}
+\resizebox{\textwidth}{!}{%
+\begin{forest}
+EL/.style={edge label={node[midway,fill=white,font=\scriptsize,inner sep=1pt]{#1}}},
+for tree={draw, rounded corners, font=\small, align=center, edge={->,>=latex},
+  l sep=10mm, s sep=5mm},
+where n children=0{fill=SkyBlue!18}{},
+[\texttt{exploit\_available}?
+  [Unknown, EL={None}]
+  [\texttt{known\_exploited}?, EL={True}
+    [High, EL={True}]
+    [\texttt{internet\_facing}?, EL={False}
+      [High, EL={True}]
+      [Medium, EL={False}]
+    ]
+  ]
+  [\texttt{known\_exploited}?, EL={False}
+    [Medium, EL={True}]
+    [Low, EL={False}]
+  ]
+]
+\end{forest}}
 \caption{Decision tree for exploitation likelihood.}
 \label{fig:tree-exploit}
 \end{figure}
@@ -182,44 +197,63 @@ Missing        & Missing                                  & Unknown \\
 \label{tab:preliminary-impact}
 \end{table}
 
-The technical-severity bands follow the qualitative severity definitions published by the National Vulnerability Database for \ac{CVSS} scores: Critical ($\geq 9.0$), High ($7.0$--$8.9$), Medium ($4.0$--$6.9$), and Low ($< 4.0$); for the rule table, the Critical and High bands are both treated as high technical severity. Reading the asset environment directly, rather than an environment-derived criticality proxy, keeps the assessment honest about its inputs. A complete business-impact rating requires asset criticality, business service, and data sensitivity, which are not present in scanner output; integrating these from a configuration management database is identified as future work in Chapter~\ref{ch:conclusion}.
+The technical-severity bands follow the qualitative severity definitions published by the National Vulnerability Database for \ac{CVSS} scores: Critical ($\geq 9.0$), High ($7.0$--$8.9$), Medium ($4.0$--$6.9$), and Low ($< 4.0$); for the rule table, the Critical and High bands are both treated as high technical severity. Reading the asset environment directly, rather than an environment-derived criticality proxy, keeps the assessment honest about its inputs. A complete business-impact rating requires knowledge of the asset itself. Where a finding can be joined to the organisation's configuration management database during ingestion (\cref{sec:ingestion}), two further signals become available: whether the asset is flagged business-critical, and whether its owner is a privileged identity. When either is present the assessment runs in \emph{complete} mode and the Critical level becomes reachable, as shown in Table~\ref{tab:complete-impact}. The two modes share the same environment and severity axes and differ only in whether asset context was available, so a finding without a matching asset record degrades cleanly to the preliminary assessment rather than failing. Data sensitivity remains absent from both sources and is therefore the one component of business impact still identified as future work in Chapter~\ref{ch:conclusion}.
 
 Figure~\ref{fig:tree-impact} shows the same logic as a decision tree.
 
 \begin{figure}[h]
 \centering
-\missingfigure{Decision tree for preliminary impact. Root: 
-asset\_environment? Missing: UNKNOWN. Production: technical severity? 
-High/Critical band: HIGH. Medium band: MEDIUM. Low band: LOW. 
-Non-production: technical severity? High/Critical band: MEDIUM. 
-Medium band: LOW. Low band: LOW. Technical severity missing: UNKNOWN.}
-\caption{Decision tree for business impact.}
+\resizebox{\textwidth}{!}{%
+\begin{forest}
+EL/.style={edge label={node[midway,fill=white,font=\scriptsize,inner sep=1pt]{#1}}},
+for tree={draw, rounded corners, font=\small, align=center, edge={->,>=latex},
+  l sep=10mm, s sep=6mm},
+where n children=0{fill=SkyBlue!18}{},
+[inputs present?
+  [Unknown, EL={no}]
+  [\texttt{asset\_environment}?, EL={yes}
+    [technical severity?, EL={Production}
+      [High\\(Critical if elevated), EL={High/Critical}]
+      [Medium\\(High if elevated), EL={Medium}]
+      [Low\\(Medium if elevated), EL={Low}]
+    ]
+    [technical severity?, EL={Non-production}
+      [Medium\\(High if elevated), EL={High/Critical}]
+      [Low\\(Medium if elevated), EL={Medium}]
+      [Low\\(Low if elevated), EL={Low}]
+    ]
+  ]
+]
+\end{forest}}
+\caption{Decision tree for impact. \emph{inputs present?} is true when both the asset environment and a technical severity are available; otherwise the impact is Unknown. A leaf $X$ \emph{(Y if elevated)} gives the preliminary impact $X$, and the complete impact $Y$ when the asset is business-critical or owned by a privileged identity.}
 \label{fig:tree-impact}
 \end{figure}
 
 \subsection{Urgency}
 \label{subsec:urgency}
 
-Urgency captures how quickly remediation should be prioritised relative to other work. It combines exploitation likelihood with patch availability and the number of days the finding has been open. The inclusion of a temporal dimension directly addresses the time element raised during the design review: a finding that has been open for 800 days carries a different operational significance than one detected yesterday, even if the underlying vulnerability is the same. The full rule table is shown in Table~\ref{tab:urgency}.
+Urgency captures how quickly remediation should be prioritised relative to other work. It combines exploitation likelihood with patch availability, asset exposure, and the age of the finding measured against its remediation deadline. The deadline is the per-finding \texttt{threshold\_days} value where the source provides one, and otherwise a configurable default of 90 days; a finding is overdue when \texttt{days\_open} exceeds this threshold. The inclusion of a temporal dimension directly addresses the time element raised during the design review: a finding that has been open well beyond its deadline carries a different operational significance than one detected recently, even if the underlying vulnerability is the same. The full rule table is shown in Table~\ref{tab:urgency}.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{@{}lllc@{}}
+\begin{tabular}{@{}lllll@{}}
 \toprule
-\textbf{Exploitation Likelihood} & \textbf{Patch Available} & \textbf{Days Open} & \textbf{Urgency} \\
+\textbf{Likelihood} & \textbf{Patch} & \textbf{Internet-Facing} & \textbf{Overdue} & \textbf{Urgency} \\
 \midrule
-High    & True  & Any     & Immediate \\
-High    & False & Any     & Immediate \\
-Medium  & True  & $> 60$  & Immediate \\
-Medium  & True  & $\leq 60$ & Scheduled \\
-Medium  & False & Any     & Scheduled \\
-Low     & True  & $> 90$  & Scheduled \\
-Low     & True  & $\leq 90$ & Monitor \\
-Low     & False & Any     & Monitor \\
-Unknown & --    & --      & Monitor \\
+High    & Any & Any & Any & Immediate \\
+Medium  & Yes & Any & Yes & Immediate \\
+Medium  & Yes & Any & No  & Scheduled \\
+Medium  & No  & Any & Any & Scheduled \\
+Low     & Yes & Any & Yes & Scheduled \\
+Low     & Yes & Any & No  & Monitor \\
+Low     & No  & Any & Any & Monitor \\
+Unknown & Any & Yes & Yes & Immediate \\
+Unknown & Any & No  & Yes & Scheduled \\
+Unknown & Yes & Any & No  & Scheduled \\
+Unknown & No  & Any & No  & Monitor \\
 \bottomrule
 \end{tabular}
-\caption{Rule table for urgency.}
+\caption{Rule table for urgency. \emph{Overdue} means \texttt{days\_open} exceeds the remediation threshold (the finding's \texttt{threshold\_days}, or a default of 90). A value of \emph{Any} means the input does not affect the outcome on that branch.}
 \label{tab:urgency}
 \end{table}
 
@@ -227,16 +261,47 @@ The three urgency levels correspond to concrete, role-neutral recommendations. \
 
 The rule for High exploitation likelihood produces Immediate regardless of whether a patch is available and regardless of how long the finding has been open. This reflects the operational reality that an actively exploitable vulnerability on an exposed asset cannot wait for a convenient patch cycle. Conversely, a Low likelihood finding with no patch available is rated Monitor rather than Scheduled, because the absence of a fix means the main available response is awareness and compensating controls, not remediation.
 
+When exploitation likelihood is Unknown, the tree does not default to the lowest level. It falls back to the two signals that remain trustworthy in the absence of exploit data: asset exposure and the remediation deadline. An internet-facing asset that is past its deadline is rated Immediate, an asset that is past its deadline but not internet-facing is rated Scheduled, a finding still within its deadline for which a patch exists is rated Scheduled, and only a finding with no exposure, no deadline breach, and no patch is rated Monitor. This branch implements the knowability principle in the urgency dimension: a finding whose exploitability cannot be assessed is still prioritised on the evidence that is present, rather than being quietly demoted.
+
 Figure~\ref{fig:tree-urgency} shows the urgency decision tree.
 
 \begin{figure}[h]
 \centering
-\missingfigure{Decision tree for urgency. Root: exploitation\_likelihood? 
-Unknown: MONITOR. High: IMMEDIATE (regardless of patch or days). 
-Medium: patch\_available? False: SCHEDULED. True: days\_open > 60? 
-Yes: IMMEDIATE. No: SCHEDULED. Low: patch\_available? False: MONITOR. 
-True: days\_open > 90? Yes: SCHEDULED. No: MONITOR.}
-\caption{Decision tree for urgency.}
+\resizebox{\textwidth}{!}{%
+\begin{forest}
+EL/.style={edge label={node[midway,fill=white,font=\scriptsize,inner sep=1pt]{#1}}},
+for tree={draw, rounded corners, font=\small, align=center, edge={->,>=latex},
+  l sep=10mm, s sep=4mm},
+where n children=0{fill=SkyBlue!18}{},
+[\texttt{exploitation\_likelihood}?
+  [Immediate, EL={High}]
+  [\texttt{patch\_available}?, EL={Medium}
+    [Scheduled, EL={No}]
+    [overdue?, EL={Yes}
+      [Immediate, EL={Yes}]
+      [Scheduled, EL={No}]
+    ]
+  ]
+  [\texttt{patch\_available}?, EL={Low}
+    [Monitor, EL={No}]
+    [overdue?, EL={Yes}
+      [Scheduled, EL={Yes}]
+      [Monitor, EL={No}]
+    ]
+  ]
+  [internet-facing\\and overdue?, EL={Unknown}
+    [Immediate, EL={Yes}]
+    [overdue?, EL={No}
+      [Scheduled, EL={Yes}]
+      [\texttt{patch\_available}?, EL={No}
+        [Scheduled, EL={Yes}]
+        [Monitor, EL={No}]
+      ]
+    ]
+  ]
+]
+\end{forest}}
+\caption{Decision tree for urgency. \emph{overdue?} is true when \texttt{days\_open} exceeds the remediation threshold (\texttt{threshold\_days}, or a default of 90).}
 \label{fig:tree-urgency}
 \end{figure}
 % ─────────────────────────────────────────────
