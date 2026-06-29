@@ -77,6 +77,8 @@ The normalised schema is defined in Table~\ref{tab:field-mapping}. It includes e
 
 Two fields require derivation rather than direct mapping. The \texttt{patch\_age\_days} field is computed from the difference between the patch release date and the current scan date. The \texttt{asset\_criticality} field is derived from a numeric asset risk score by applying fixed categorical thresholds: scores of 7.0 or above are mapped to High, scores between 4.0 and 6.9 are mapped to Medium, and scores below 4.0 are mapped to Low. These thresholds are aligned with the severity band conventions used by the National Vulnerability Database for \ac{CVSS} scores and are documented here to support reproducibility. Both derivations are performed within the parser, keeping all input-specific logic contained within the Ingestion layer.
 
+For the ISD source, the export contains no asset-criticality field; \texttt{asset\_criticality} is therefore derived from the asset environment label as a documented proxy and retained for compatibility, while the preliminary impact assessment (\cref{subsec:preliminary-impact}) reads the environment directly. The Asset Type and Severity columns of the ISD export are uniform in the available data (\texttt{Server} and \texttt{High} respectively) and so carry no discriminating power.
+
 The normalised schema is intentionally minimal. It includes only the fields that are consumed by the Abstraction layer and excludes raw metadata that has no bearing on the explanation, such as internal identifiers, vendor-specific tags, and scan infrastructure data. A narrow interface between layers reduces the risk of unintended coupling and makes it easier to reason about what information flows between components~\cite{bass2012software}.
 
 % ─────────────────────────────────────────────
@@ -87,8 +89,7 @@ The normalised schema is intentionally minimal. It includes only the fields that
 The Abstraction layer maps the normalised technical fields produced 
 by the Ingestion layer to three higher-level concepts that are 
 meaningful for both stakeholder groups: exploitation likelihood, 
-business impact, and urgency. These concepts do not appear in raw 
-scanner output. They are derived by evaluating input fields against 
+preliminary impact assessment, and urgency. These concepts do not appear in raw scanner output. They are derived by evaluating input fields against 
 manually-defined decision trees. Unlike machine learning approaches, 
 the branching conditions in each tree are specified explicitly by 
 the designer based on domain knowledge and the requirements elicited 
@@ -157,45 +158,41 @@ False: internet\_facing? True: LOW. False: LOW.}
 \label{fig:tree-exploit}
 \end{figure}
 
-\subsection{Business Impact}
-\label{subsec:business-impact}
+\subsection{Preliminary Impact Assessment}
+\label{subsec:preliminary-impact}
 
-Business impact captures the potential organisational consequence of a successful exploitation of this vulnerability. It is derived from the \ac{CVSS} base score and the asset criticality. The \ac{CVSS} score represents the intrinsic severity of the vulnerability in isolation; the asset criticality adjusts this for the importance of the affected system to the organisation. A vulnerability with a high \ac{CVSS} score on a low-criticality development system carries a lower business impact than the same vulnerability on a high-criticality production system. This distinction is important for non-technical stakeholders, who are primarily concerned with business consequence rather than technical severity scores~\cite{cranor2008framework}. The full rule table is shown in Table~\ref{tab:business-impact}.
+Business impact, in the full sense, is the potential organisational consequence of a successful exploitation: it depends not only on the severity of the vulnerability but on the criticality of the affected asset, the business service it supports, and the sensitivity of the data it holds. The vulnerability export available for this work does not contain these asset attributes. Stakeholder feedback during the design cycle confirmed that technical severity alone is not business impact, and that the export carries no asset-criticality field. This layer therefore produces a \emph{preliminary} impact assessment rather than a complete business-impact rating, combining the two signals that are available: the asset environment and the technical severity of the vulnerability. The technical severity is taken from the \ac{CVSS} base score where present, and otherwise from the scanner's categorical severity band. The highest level the preliminary assessment can reach is High; a Critical rating is deliberately withheld because it would assert a level of business consequence that the available data cannot support. The full rule table is shown in Table~\ref{tab:preliminary-impact}.
 
 \begin{table}[h]
 \centering
 \begin{tabular}{@{}llc@{}}
 \toprule
-\textbf{CVSS Score} & \textbf{Asset Criticality} & \textbf{Business Impact} \\
+\textbf{Asset Environment} & \textbf{Technical Severity} & \textbf{Preliminary Impact} \\
 \midrule
-$\geq 9.0$ & High   & Critical \\
-$\geq 9.0$ & Medium & High \\
-$\geq 9.0$ & Low    & High \\
-$7.0$--$8.9$ & High   & High \\
-$7.0$--$8.9$ & Medium & Medium \\
-$7.0$--$8.9$ & Low    & Medium \\
-$4.0$--$6.9$ & High   & Medium \\
-$4.0$--$6.9$ & Medium & Low \\
-$4.0$--$6.9$ & Low    & Low \\
-$< 4.0$      & Any    & Low \\
-None         & --     & Unknown \\
+Production     & High ($\geq 7.0$, or band High/Critical) & High \\
+Production     & Moderate ($4.0$--$6.9$)                  & Medium \\
+Production     & Low ($< 4.0$)                            & Low \\
+Non-production & High                                     & Medium \\
+Non-production & Moderate                                 & Low \\
+Non-production & Low                                      & Low \\
+Missing        & Missing                                  & Unknown \\
 \bottomrule
 \end{tabular}
-\caption{Rule table for business impact.}
-\label{tab:business-impact}
+\caption{Rule table for the preliminary impact assessment.}
+\label{tab:preliminary-impact}
 \end{table}
 
-The \ac{CVSS} score thresholds used in this table are aligned with the severity band definitions published by the National Vulnerability Database: Critical ($\geq 9.0$), High ($7.0$--$8.9$), Medium ($4.0$--$6.9$), and Low ($< 4.0$). Using established conventions rather than arbitrary thresholds makes the rules more defensible and easier to update if the conventions change. The interaction between the score and the asset criticality means that the highest business impact rating, Critical, is only reachable when both the intrinsic severity is at its maximum and the asset is of high organisational importance.
+The technical-severity bands follow the qualitative severity definitions published by the National Vulnerability Database for \ac{CVSS} scores: Critical ($\geq 9.0$), High ($7.0$--$8.9$), Medium ($4.0$--$6.9$), and Low ($< 4.0$); for the rule table, the Critical and High bands are both treated as high technical severity. Reading the asset environment directly, rather than an environment-derived criticality proxy, keeps the assessment honest about its inputs. A complete business-impact rating requires asset criticality, business service, and data sensitivity, which are not present in scanner output; integrating these from a configuration management database is identified as future work in Chapter~\ref{ch:conclusion}.
 
 Figure~\ref{fig:tree-impact} shows the same logic as a decision tree.
 
 \begin{figure}[h]
 \centering
-\missingfigure{Decision tree for business impact. Root: cvss\_score? 
-None: UNKNOWN. Less than 4.0: LOW. 4.0-6.9: asset\_criticality? 
-High: MEDIUM. Medium: LOW. Low: LOW. 7.0-8.9: asset\_criticality? 
-High: HIGH. Medium: MEDIUM. Low: MEDIUM. 9.0 or above: 
-asset\_criticality? High: CRITICAL. Medium: HIGH. Low: HIGH.}
+\missingfigure{Decision tree for preliminary impact. Root: 
+asset\_environment? Missing: UNKNOWN. Production: technical severity? 
+High/Critical band: HIGH. Medium band: MEDIUM. Low band: LOW. 
+Non-production: technical severity? High/Critical band: MEDIUM. 
+Medium band: LOW. Low band: LOW. Technical severity missing: UNKNOWN.}
 \caption{Decision tree for business impact.}
 \label{fig:tree-impact}
 \end{figure}
@@ -276,7 +273,10 @@ The Explanation layer performs two operations in sequence: content selection and
 
 \paragraph{Content selection.} Content selection identifies the factors that most strongly contributed to the urgency and impact ratings and places them in the \texttt{top\_factors} field. The selection follows a fixed priority order: exploitation likelihood is listed first because it is the most actionable signal for the stakeholder, business impact is listed second, and patch availability or days open is listed third if it materially affected the urgency rating. At most three factors are included. This implements DP2: rather than exposing all eighteen normalised fields, the system selects the two or three pieces of evidence that actually explain the outcome~\cite{miller2019explanation}. Each factor is recorded with a short human-readable label and an evidence pointer to the specific normalised input field that produced it.
 
-\paragraph{Template filling.} Template filling produces the natural language fields of the explanation object by inserting the abstracted values into predefined sentence templates. Each template has fixed wording with variable slots. An example for \texttt{risk\_summary} is: \textit{``This vulnerability carries [urgency] urgency because [factor\_1] and [factor\_2].''} For a finding with High exploitation likelihood and Critical business impact, this produces: \textit{``This vulnerability carries Immediate urgency because a public exploit is available for an internet-facing production system and the potential business impact is Critical.''} The \texttt{business\_consequence} field uses a separate template set that expresses impact in operational terms rather than technical ones: for example, \textit{``If exploited, this vulnerability could allow an attacker to gain unauthorised access to a production system, potentially disrupting business operations or exposing sensitive data.''}
+\paragraph{Template filling.} Template filling produces the natural language fields of the explanation object by inserting the abstracted values into predefined sentence templates. Each template has fixed wording with variable slots. An example for \texttt{risk\_summary} is: \textit{``This vulnerability carries [urgency] urgency because [factor\_1] and [factor\_2].''} For a finding with High exploitation likelihood and Critical business impact, this produces: \textit{``This vulnerability 
+carries Immediate urgency because a public exploit is available for 
+this vulnerability and active exploitation has been observed in the 
+wild.''} The \texttt{business\_consequence} field uses a separate template set that expresses impact in operational terms rather than technical ones: for example, \textit{``If exploited, this vulnerability could allow an attacker to gain unauthorised access to a production system, potentially disrupting business operations or exposing sensitive data.''}
 
 Template-based generation keeps the output consistent, auditable, and free from the variability that arises when natural language is generated by a language model. It also means that the text of the explanation can be reviewed and revised by a domain expert without requiring code changes, because the templates are stored as separate configuration rather than embedded in the generation logic.
 
@@ -383,9 +383,9 @@ the values are typed and structured only.
 \paragraph{Abstraction layer.} Each decision tree is evaluated in 
 turn. For exploitation likelihood, the tree traverses: 
 \texttt{exploit\_available = True} $\to$ \texttt{known\_exploited 
-= True} $\to$ \textbf{High}. For business impact: 
-\texttt{cvss\_score = 9.8} $\geq 9.0$ $\to$ 
-\texttt{asset\_criticality = High} $\to$ \textbf{Critical}. 
+= True} $\to$ \textbf{High}. For the preliminary impact assessment: 
+\texttt{asset\_environment = production} with a Critical-band 
+\ac{CVSS} score of 9.8 $\to$ \textbf{High}.
 For urgency: \texttt{exploitation\_likelihood = High} $\to$ 
 \textbf{Immediate}, regardless of patch status or days open.
 
@@ -412,7 +412,7 @@ Figures~\ref{fig:example-output-tech} and~\ref{fig:example-output-nontech} show 
 
 \begin{figure}[h]
 \centering
-\missingfigure{Screenshot of the prototype technical view for Scenario A. Visible fields: CVE-2024-XXXX, CVSS 9.8, Exploitation Likelihood: High (with evidence: exploit\_available = True, known\_exploited = True, asset\_internet\_facing = True), Business Impact: Critical (with evidence: cvss\_score = 9.8, asset\_criticality = High), Urgency: Immediate, Action: Apply vendor patch immediately and isolate the asset pending remediation, Certainty: Known.}
+\missingfigure{Screenshot of the prototype technical view for Scenario A. Visible fields: CVE-2024-XXXX, CVSS 9.8, Exploitation Likelihood: High (with evidence: exploit\_available = True, known\_exploited = True, asset\_internet\_facing = True), Preliminary Impact: High (with evidence: asset\_environment = production, technical\_severity = Critical), Urgency: Immediate, Action: Apply vendor patch immediately and isolate the asset pending remediation, Certainty: Known.}
 \caption{Technical view output for Scenario A (clear critical finding).}
 \label{fig:example-output-tech}
 \end{figure}
