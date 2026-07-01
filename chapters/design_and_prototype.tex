@@ -23,7 +23,25 @@ The architecture is organised into four sequential layers: Ingestion, Abstractio
 
 \begin{figure}[h]
 \centering
-\missingfigure{Left-to-right flow diagram with five labelled boxes connected by arrows. Box 1: Scanner Input. Box 2: Ingestion Layer (``Normalise raw fields''). Box 3: Abstraction Layer (``Map fields to concepts''). Box 4: Explanation Layer (``Produce explanation object''). Box 5: Stakeholder View Layer, from which two arrows point to two output boxes: Technical View and Non-Technical View. Boxes 2 through 5 should be visually distinct from the input and output boxes.}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  layer/.style={draw, rounded corners, fill=blue!8, align=center, text width=2.5cm, minimum height=1.5cm, font=\small},
+  io/.style={draw, fill=black!10, align=center, text width=2.2cm, minimum height=1.2cm, font=\small}
+]
+\node[io]    (scan) at (0,0)      {Scanner\\input};
+\node[layer] (ing)  at (3,0)      {Ingestion\\[2pt]\footnotesize normalise raw fields};
+\node[layer] (abs)  at (6,0)      {Abstraction\\[2pt]\footnotesize map fields to concepts};
+\node[layer] (exp)  at (9,0)      {Explanation\\[2pt]\footnotesize produce explanation object};
+\node[layer] (sv)   at (12,0)     {Stakeholder view\\[2pt]\footnotesize render per audience};
+\node[io]    (tech) at (15.2,1.2) {Technical\\view};
+\node[io]    (nt)   at (15.2,-1.2){Non-technical\\view};
+\draw[->] (scan) -- (ing);
+\draw[->] (ing) -- (abs);
+\draw[->] (abs) -- (exp);
+\draw[->] (exp) -- (sv);
+\draw[->] (sv) -- (tech);
+\draw[->] (sv) -- (nt);
+\end{tikzpicture}}
 \caption{Overview of the four-layer explanation architecture.}
 \label{fig:architecture-overview}
 \end{figure}
@@ -385,7 +403,32 @@ The Stakeholder View layer renders the explanation object into a role-specific o
 
 \begin{figure}[h]
 \centering
-\missingfigure{Side-by-side panel comparison. Left panel labelled ``Technical View'' shows: CVE ID, CVSS score (numeric), Exploitation Likelihood (High/Medium/Low label), Business Impact label, top factors list with evidence pointers (e.g. exploit\_available: True), Certainty level, Action, Limitations if any. Right panel labelled ``Non-Technical View'' shows: Risk Summary sentence, Business Consequence sentence, Urgency badge (colour-coded: red for Immediate, amber for Scheduled, green for Monitor), Time Horizon sentence, Action sentence in plain language, Limitations note if certainty is not Known. No CVSS scores or CVE IDs visible in the right panel.}
+\begin{tikzpicture}[
+  panel/.style={draw, rounded corners, align=left, text width=6.2cm, inner sep=8pt, font=\small}
+]
+\node[panel, anchor=north west] (t) at (0,0) {%
+  {\bfseries Technical view}\\[4pt]
+  CVE identifier\\
+  CVSS score (numeric)\\
+  Exploitation likelihood (High / Medium / Low)\\
+  Business impact\\
+  Top factors, each with an evidence pointer\\
+  \hspace{1em}(e.g.\ \texttt{exploit\_available: True})\\
+  Certainty level\\
+  Recommended action\\
+  Limitations, if any
+};
+\node[panel, anchor=north west] (n) at (6.9,0) {%
+  {\bfseries Non-technical view}\\[4pt]
+  Risk summary sentence\\
+  Business consequence sentence\\
+  Urgency badge (Immediate / Scheduled / Monitor)\\
+  Time horizon sentence\\
+  Action, in plain language\\
+  Limitations note, if certainty is not Known\\[6pt]
+  \itshape No CVE identifiers or CVSS scores shown.
+};
+\end{tikzpicture}
 \caption{The technical view (left) and the non-technical view (right) rendered from the same explanation object.}
 \label{fig:stakeholder-views}
 \end{figure}
@@ -502,18 +545,5 @@ and the recommended action.
 
 \subsection{Example Output}
 
-Figures~\ref{fig:example-output-tech} and~\ref{fig:example-output-nontech} show the prototype output for Scenario A. The two figures illustrate the core contribution of the Stakeholder View layer: the same underlying finding, structured by the same explanation object, is rendered into two substantially different representations that are each appropriate for their intended audience.
+The prototype output for Scenario A is shown in Appendix~\ref{sec:output-screenshots} (Figures~\ref{fig:example-output-tech} and~\ref{fig:example-output-nontech}). The two figures illustrate the core contribution of the Stakeholder View layer: the same underlying finding, structured by the same explanation object, is rendered into two substantially different representations that are each appropriate for their intended audience.
 
-\begin{figure}[h]
-\centering
-\missingfigure{Screenshot of the prototype technical view for Scenario A. Visible fields: CVE-2024-XXXX, CVSS 9.8, Exploitation Likelihood: High (with evidence: exploit\_available = True, known\_exploited = True, asset\_internet\_facing = True), Preliminary Impact: High (with evidence: asset\_environment = production, technical\_severity = Critical), Urgency: Immediate, Action: Apply vendor patch immediately and isolate the asset pending remediation, Certainty: Known.}
-\caption{Technical view output for Scenario A (clear critical finding).}
-\label{fig:example-output-tech}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\missingfigure{Screenshot of the prototype non-technical view for the same Scenario A finding. Visible fields: Risk Summary sentence (no CVE ID or CVSS score visible), Business Consequence sentence in plain language, Urgency badge coloured red with label ``Immediate'', Time Horizon sentence (e.g. ``This should be addressed within the current working week''), Action sentence in plain language (e.g. ``Apply the available security update and isolate the affected server until the update is applied''). No technical field names visible.}
-\caption{Non-technical view output for the same Scenario A finding.}
-\label{fig:example-output-nontech}
-\end{figure}
