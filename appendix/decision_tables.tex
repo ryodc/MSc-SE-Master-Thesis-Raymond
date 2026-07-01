@@ -1,0 +1,247 @@
+\section{Decision Tables}
+\label{sec:decision-tables}
+
+The three decision trees of the abstraction layer (\cref{sec:abstraction-layer}) are enumerated exhaustively below as decision tables. Each row is one combination of decision-point values and the outcome the tree returns for it. A value of \emph{none} denotes an absent input. The tables were generated directly from the prototype and verified for completeness and consistency: every combination maps to exactly one outcome, and the number of rows equals the product of the decision-point value counts, namely 27, 108, and 72.
+
+\subsection{Exploitation Likelihood}
+\begin{longtable}{@{}llll@{}}
+\caption{Exploitation likelihood decision table.}\label{tab:dt-likelihood}\\
+\toprule
+Exploit available & Known exploited & Internet-facing & Outcome \\ \midrule
+\endfirsthead
+\toprule Exploit available & Known exploited & Internet-facing & Outcome \\ \midrule
+\endhead
+\bottomrule
+\endfoot
+True & True & True & High \\
+True & True & False & High \\
+True & True & none & High \\
+True & False & True & High \\
+True & False & False & Medium \\
+True & False & none & Medium \\
+True & none & True & High \\
+True & none & False & Medium \\
+True & none & none & Medium \\
+False & True & True & Medium \\
+False & True & False & Medium \\
+False & True & none & Medium \\
+False & False & True & Low \\
+False & False & False & Low \\
+False & False & none & Low \\
+False & none & True & Low \\
+False & none & False & Low \\
+False & none & none & Low \\
+none & True & True & Unknown \\
+none & True & False & Unknown \\
+none & True & none & Unknown \\
+none & False & True & Unknown \\
+none & False & False & Unknown \\
+none & False & none & Unknown \\
+none & none & True & Unknown \\
+none & none & False & Unknown \\
+none & none & none & Unknown \\
+\end{longtable}
+
+\subsection{Impact}
+\begin{longtable}{@{}lllll@{}}
+\caption{Impact decision table.}\label{tab:dt-impact}\\
+\toprule
+Environment & Severity tier & Business-critical & Owner privileged & Outcome \\ \midrule
+\endfirsthead
+\toprule Environment & Severity tier & Business-critical & Owner privileged & Outcome \\ \midrule
+\endhead
+\bottomrule
+\endfoot
+production & high & True & True & Critical \\
+production & high & True & False & Critical \\
+production & high & True & none & Critical \\
+production & high & False & True & Critical \\
+production & high & False & False & High \\
+production & high & False & none & High \\
+production & high & none & True & High \\
+production & high & none & False & High \\
+production & high & none & none & High \\
+production & moderate & True & True & High \\
+production & moderate & True & False & High \\
+production & moderate & True & none & High \\
+production & moderate & False & True & High \\
+production & moderate & False & False & Medium \\
+production & moderate & False & none & Medium \\
+production & moderate & none & True & Medium \\
+production & moderate & none & False & Medium \\
+production & moderate & none & none & Medium \\
+production & low & True & True & Medium \\
+production & low & True & False & Medium \\
+production & low & True & none & Medium \\
+production & low & False & True & Medium \\
+production & low & False & False & Low \\
+production & low & False & none & Low \\
+production & low & none & True & Low \\
+production & low & none & False & Low \\
+production & low & none & none & Low \\
+production & none & True & True & Unknown \\
+production & none & True & False & Unknown \\
+production & none & True & none & Unknown \\
+production & none & False & True & Unknown \\
+production & none & False & False & Unknown \\
+production & none & False & none & Unknown \\
+production & none & none & True & Unknown \\
+production & none & none & False & Unknown \\
+production & none & none & none & Unknown \\
+staging & high & True & True & High \\
+staging & high & True & False & High \\
+staging & high & True & none & High \\
+staging & high & False & True & High \\
+staging & high & False & False & Medium \\
+staging & high & False & none & Medium \\
+staging & high & none & True & Medium \\
+staging & high & none & False & Medium \\
+staging & high & none & none & Medium \\
+staging & moderate & True & True & Medium \\
+staging & moderate & True & False & Medium \\
+staging & moderate & True & none & Medium \\
+staging & moderate & False & True & Medium \\
+staging & moderate & False & False & Low \\
+staging & moderate & False & none & Low \\
+staging & moderate & none & True & Low \\
+staging & moderate & none & False & Low \\
+staging & moderate & none & none & Low \\
+staging & low & True & True & Low \\
+staging & low & True & False & Low \\
+staging & low & True & none & Low \\
+staging & low & False & True & Low \\
+staging & low & False & False & Low \\
+staging & low & False & none & Low \\
+staging & low & none & True & Low \\
+staging & low & none & False & Low \\
+staging & low & none & none & Low \\
+staging & none & True & True & Unknown \\
+staging & none & True & False & Unknown \\
+staging & none & True & none & Unknown \\
+staging & none & False & True & Unknown \\
+staging & none & False & False & Unknown \\
+staging & none & False & none & Unknown \\
+staging & none & none & True & Unknown \\
+staging & none & none & False & Unknown \\
+staging & none & none & none & Unknown \\
+none & high & True & True & Unknown \\
+none & high & True & False & Unknown \\
+none & high & True & none & Unknown \\
+none & high & False & True & Unknown \\
+none & high & False & False & Unknown \\
+none & high & False & none & Unknown \\
+none & high & none & True & Unknown \\
+none & high & none & False & Unknown \\
+none & high & none & none & Unknown \\
+none & moderate & True & True & Unknown \\
+none & moderate & True & False & Unknown \\
+none & moderate & True & none & Unknown \\
+none & moderate & False & True & Unknown \\
+none & moderate & False & False & Unknown \\
+none & moderate & False & none & Unknown \\
+none & moderate & none & True & Unknown \\
+none & moderate & none & False & Unknown \\
+none & moderate & none & none & Unknown \\
+none & low & True & True & Unknown \\
+none & low & True & False & Unknown \\
+none & low & True & none & Unknown \\
+none & low & False & True & Unknown \\
+none & low & False & False & Unknown \\
+none & low & False & none & Unknown \\
+none & low & none & True & Unknown \\
+none & low & none & False & Unknown \\
+none & low & none & none & Unknown \\
+none & none & True & True & Unknown \\
+none & none & True & False & Unknown \\
+none & none & True & none & Unknown \\
+none & none & False & True & Unknown \\
+none & none & False & False & Unknown \\
+none & none & False & none & Unknown \\
+none & none & none & True & Unknown \\
+none & none & none & False & Unknown \\
+none & none & none & none & Unknown \\
+\end{longtable}
+
+\subsection{Urgency}
+\begin{longtable}{@{}lllll@{}}
+\caption{Urgency decision table.}\label{tab:dt-urgency}\\
+\toprule
+Likelihood & Patch available & Overdue & Internet-facing & Outcome \\ \midrule
+\endfirsthead
+\toprule Likelihood & Patch available & Overdue & Internet-facing & Outcome \\ \midrule
+\endhead
+\bottomrule
+\endfoot
+High & True & True & True & Immediate \\
+High & True & True & False & Immediate \\
+High & True & True & none & Immediate \\
+High & True & False & True & Immediate \\
+High & True & False & False & Immediate \\
+High & True & False & none & Immediate \\
+High & False & True & True & Immediate \\
+High & False & True & False & Immediate \\
+High & False & True & none & Immediate \\
+High & False & False & True & Immediate \\
+High & False & False & False & Immediate \\
+High & False & False & none & Immediate \\
+High & none & True & True & Immediate \\
+High & none & True & False & Immediate \\
+High & none & True & none & Immediate \\
+High & none & False & True & Immediate \\
+High & none & False & False & Immediate \\
+High & none & False & none & Immediate \\
+Medium & True & True & True & Immediate \\
+Medium & True & True & False & Immediate \\
+Medium & True & True & none & Immediate \\
+Medium & True & False & True & Scheduled \\
+Medium & True & False & False & Scheduled \\
+Medium & True & False & none & Scheduled \\
+Medium & False & True & True & Scheduled \\
+Medium & False & True & False & Scheduled \\
+Medium & False & True & none & Scheduled \\
+Medium & False & False & True & Scheduled \\
+Medium & False & False & False & Scheduled \\
+Medium & False & False & none & Scheduled \\
+Medium & none & True & True & Scheduled \\
+Medium & none & True & False & Scheduled \\
+Medium & none & True & none & Scheduled \\
+Medium & none & False & True & Scheduled \\
+Medium & none & False & False & Scheduled \\
+Medium & none & False & none & Scheduled \\
+Low & True & True & True & Scheduled \\
+Low & True & True & False & Scheduled \\
+Low & True & True & none & Scheduled \\
+Low & True & False & True & Monitor \\
+Low & True & False & False & Monitor \\
+Low & True & False & none & Monitor \\
+Low & False & True & True & Monitor \\
+Low & False & True & False & Monitor \\
+Low & False & True & none & Monitor \\
+Low & False & False & True & Monitor \\
+Low & False & False & False & Monitor \\
+Low & False & False & none & Monitor \\
+Low & none & True & True & Monitor \\
+Low & none & True & False & Monitor \\
+Low & none & True & none & Monitor \\
+Low & none & False & True & Monitor \\
+Low & none & False & False & Monitor \\
+Low & none & False & none & Monitor \\
+Unknown & True & True & True & Immediate \\
+Unknown & True & True & False & Scheduled \\
+Unknown & True & True & none & Scheduled \\
+Unknown & True & False & True & Scheduled \\
+Unknown & True & False & False & Scheduled \\
+Unknown & True & False & none & Scheduled \\
+Unknown & False & True & True & Immediate \\
+Unknown & False & True & False & Scheduled \\
+Unknown & False & True & none & Scheduled \\
+Unknown & False & False & True & Monitor \\
+Unknown & False & False & False & Monitor \\
+Unknown & False & False & none & Monitor \\
+Unknown & none & True & True & Immediate \\
+Unknown & none & True & False & Scheduled \\
+Unknown & none & True & none & Scheduled \\
+Unknown & none & False & True & Monitor \\
+Unknown & none & False & False & Monitor \\
+Unknown & none & False & none & Monitor \\
+\end{longtable}
