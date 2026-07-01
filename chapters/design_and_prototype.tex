@@ -115,6 +115,31 @@ and a finding that cannot be rated because the required evidence is
 absent. The three decision trees are described in detail below, each 
 accompanied by a diagram illustrating the branching logic.
 
+\subsection{Grounding in Stakeholder-Specific Vulnerability Categorization}
+\label{subsec:ssvc-grounding}
+
+The three decision trees are not defined ad hoc. They instantiate the deployer decision model of Stakeholder-Specific Vulnerability Categorization (SSVC), the qualitative decision-tree alternative to severity scoring developed by CERT at Carnegie Mellon and adopted by CISA \cite{spring2021ssvc}. SSVC evaluates a small set of decision points and returns an ordered action category, and it requires that every decision point and outcome be explainable to a non-expert, which is the same commitment this artifact makes. Table~\ref{tab:ssvc-mapping} maps the decision points and outcomes used here to their SSVC counterparts.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lp{0.34\textwidth}l@{}}
+\toprule
+\textbf{This artifact} & \textbf{Reads} & \textbf{SSVC decision point} \\
+\midrule
+Exploitation likelihood & \texttt{exploit\_available}, \texttt{known\_exploited} & Exploitation \\
+                        & \texttt{asset\_internet\_facing} & System Exposure \\
+Impact                  & \texttt{asset\_environment}, technical severity, \texttt{asset\_business\_critical}, \texttt{asset\_owner\_privileged} & Mission \& Human Impact \\
+Urgency (outcome)       & Immediate / Scheduled / Monitor & Immediate / Scheduled / Defer \\
+\bottomrule
+\end{tabular}
+\caption{Mapping of the artifact's decision points and outcomes to the SSVC deployer model.}
+\label{tab:ssvc-mapping}
+\end{table}
+
+Two deliberate deviations from the standard deployer tree are made, both permitted by SSVC, which explicitly invites stakeholders to define their own decision points and outcomes \cite{spring2021ssvc}. First, the single deployer decision is split into three separate trees for likelihood, impact, and urgency, so that each axis can be explained on its own rather than collapsed into one path. This supports the explanation layer, where the contributing factors are drawn from the individual trees. Second, two organisation-specific decision points, asset business criticality and asset owner privilege, are added from the configuration management database, which the generic SSVC tree does not include.
+
+Because the rules form a finite decision table, the rule base can be checked for the two properties such a table must satisfy: completeness, that every combination of decision-point values maps to a defined outcome, and consistency, that each combination maps to exactly one outcome. Both properties are verified for all three trees by exhaustively enumerating the decision-point value space, which confirms that no input falls through without a rating and that no two rules conflict. The full decision tables are listed in the appendix.
+
 \subsection{Exploitation Likelihood}
 \label{subsec:exploit-likelihood}
 

@@ -70,6 +70,14 @@ This literature is attractive for the current thesis because it reframes explana
 
 At the same time, this body of work has a limitation when brought into cybersecurity. Most data-to-text systems are not designed around traceability to security evidence, role-specific explanation needs, or the quality attributes that become important when explanations are part of a software workflow that must evolve over time. They provide useful design strategies, but not a complete answer to the architectural problem. In other words, they are highly relevant as a source of explanation patterns, but they do not solve the integration challenge that this thesis addresses.
 
+\section{Vulnerability Prioritisation and Stakeholder-Specific Categorisation}
+
+Operational vulnerability management depends on prioritisation, because the number of findings far exceeds what can be remediated at once. The dominant instrument is the Common Vulnerability Scoring System, which expresses the technical severity of a vulnerability as a single numeric score. This reduction is also its main limitation: a score describes the severity of the vulnerability in isolation rather than the risk it poses to a particular organisation, and the numeric form hides the reasoning that produced it \cite{spring2021ssvc}.
+
+Stakeholder-Specific Vulnerability Categorization (SSVC), developed by the CERT division of the Carnegie Mellon Software Engineering Institute and later adopted by CISA, was proposed as an alternative \cite{spring2021ssvc}. Instead of a numeric score, SSVC uses qualitative decision trees: a stakeholder evaluates a small set of decision points, such as exploitation status, system exposure, and mission or human impact, and the tree returns an ordered action category rather than a number. SSVC is explicitly stakeholder-specific, with different trees for suppliers, deployers, and coordinators, and it is designed so that every decision point and outcome can be explained to a non-expert. The path from input values to recommended action is therefore transparent and auditable, which a single score is not.
+
+SSVC is directly relevant to this thesis. The abstraction layer of the proposed artifact (\cref{sec:abstraction-layer}) is an instance of an SSVC-style deployer decision model: it replaces severity scores with qualitative decision trees over a small set of decision points and produces ordered action categories. Where SSVC stops is at the category. It outputs a prioritisation label and does not address how that decision is communicated to a non-technical stakeholder. The explanation and stakeholder-view layers of this thesis address precisely that gap.
+
 \section{Research Gap}
 
 Taken together, the literature reveals a clear gap.
